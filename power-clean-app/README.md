@@ -3,7 +3,7 @@
 Mobile-first business management platform for pressure washing and soft washing.
 
 ## Development status
-Responsive Next.js development preview scaffolded. Customer creation/search works only in temporary in-memory state; refreshing clears entries. No authentication, database, messaging, payment processing, or production deployment exists yet.
+Responsive Next.js development preview scaffolded. Customer creation/search works only in temporary in-memory state; refreshing clears entries. Supabase authentication and database-backed customer routes are coded but require project credentials and migrations. Messaging, payment processing, and production deployment do not exist yet.
 
 ## Phase 1 scope
 - Customer and lead CRM with job and contact history
@@ -40,3 +40,7 @@ npm run dev
 Open http://localhost:3000. To check code, run `npm run typecheck`, `npm run lint`, and `npm run build`. These checks have not yet been executed in CI.
 
 **Privacy:** The current customer form is a UI prototype only. Do not enter real customer personal information until secure authentication, database policies, and data retention controls are implemented.
+
+## Backend setup
+
+See [Supabase setup](docs/SUPABASE_SETUP.md) for database migration, account provisioning, and row-level security validation. The root dashboard remains a nonpersistent UI preview; use `/login` and `/customers` for the new backend-connected flow after configuring Supabase. Do not enter real customer information before security tests.
