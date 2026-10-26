@@ -3,7 +3,7 @@
 Mobile-first business management platform for pressure washing and soft washing.
 
 ## Development status
-Planning and repository foundation. No production application is deployed yet.
+Responsive Next.js development preview scaffolded. Customer creation/search works only in temporary in-memory state; refreshing clears entries. No authentication, database, messaging, payment processing, or production deployment exists yet.
 
 ## Phase 1 scope
 - Customer and lead CRM with job and contact history
@@ -28,3 +28,15 @@ Next.js / TypeScript / Tailwind CSS; PostgreSQL with Supabase authentication and
 - Photo-based surface measurements are estimates requiring human confirmation.
 
 See docs/PHASE_1_REQUIREMENTS.md and docs/ARCHITECTURE.md.
+
+## Run locally
+
+```bash
+cd power-clean-app
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. To check code, run `npm run typecheck`, `npm run lint`, and `npm run build`. These checks have not yet been executed in CI.
+
+**Privacy:** The current customer form is a UI prototype only. Do not enter real customer personal information until secure authentication, database policies, and data retention controls are implemented.
