@@ -11,10 +11,10 @@ export default async function AgreementsPage(){
  if(!member)return <main className="workspace"><h1>Business access pending</h1></main>;
  const [{data:customers},{data:agreements}]=await Promise.all([
  supabase.from('customers').select('id,name').eq('business_id',member.business_id).order('name').limit(500),
- supabase.from('customer_agreements').select('id,title,document_type,status,created_at,customers(name)').eq('business_id',member.business_id).order('created_at',{ascending:false}).limit(100)
+ supabase.from('customer_agreements').select('id,title,document_type,status,created_at,customers(name,email,phone)').eq('business_id',member.business_id).order('created_at',{ascending:false}).limit(100)
  ]);
  return <main className="workspace"><header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Customer Agreements</h1><p className="muted">Service contracts and liability releases</p></div><Link href="/customers">Customers</Link></header>
  <AgreementForm customers={customers||[]}/>
- <section className="panel"><h2>Saved agreements</h2>{!agreements?.length?<p>No agreements created yet.</p>:<ul>{agreements.map(a=><li key={a.id}><Link href={`/agreements/view?id=${a.id}`}><strong>{a.title}</strong></Link> — {(a.customers as unknown as {name:string}|null)?.name||'Customer'} — {a.status} — {new Date(a.created_at).toLocaleDateString('en-US')}{a.status==='draft'&&<SigningLink id={a.id}/>}</li>)}</ul>}</section>
+ <section className="panel"><h2>Saved agreements</h2>{!agreements?.length?<p>No agreements created yet.</p>:<ul>{agreements.map(a=><li key={a.id}><Link href={`/agreements/view?id=${a.id}`}><strong>{a.title}</strong></Link> — {(a.customers as unknown as {name:string}|null)?.name||'Customer'} — {a.status} — {new Date(a.created_at).toLocaleDateString('en-US')}{a.status==='draft'&&<SigningLink id={a.id} customerName={(a.customers as unknown as {name:string}|null)?.name} email={(a.customers as unknown as {email:string|null}|null)?.email} phone={(a.customers as unknown as {phone:string|null}|null)?.phone}/>}</li>)}</ul>}</section>
  </main>;
 }
