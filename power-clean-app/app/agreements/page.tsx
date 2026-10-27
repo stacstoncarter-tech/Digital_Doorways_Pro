@@ -15,6 +15,6 @@ export default async function AgreementsPage(){
  ]);
  return <main className="workspace"><header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Customer Agreements</h1><p className="muted">Service contracts and liability releases</p></div><Link href="/customers">Customers</Link></header>
  <AgreementForm customers={customers||[]}/>
- <section className="panel"><h2>Saved agreements</h2>{!agreements?.length?<p>No agreements created yet.</p>:<ul>{agreements.map(a=><li key={a.id}><strong>{a.title}</strong> — {(a.customers as unknown as {name:string}|null)?.name||'Customer'} — {a.status} — {new Date(a.created_at).toLocaleDateString('en-US')}{a.status==='draft'&&<SigningLink id={a.id}/>}</li>)}</ul>}</section>
+ <section className="panel"><h2>Saved agreements</h2>{!agreements?.length?<p>No agreements created yet.</p>:<ul>{agreements.map(a=><li key={a.id}><Link href={`/agreements/view?id=${a.id}`}><strong>{a.title}</strong></Link> — {(a.customers as unknown as {name:string}|null)?.name||'Customer'} — {a.status} — {new Date(a.created_at).toLocaleDateString('en-US')}{a.status==='draft'&&<SigningLink id={a.id}/>}</li>)}</ul>}</section>
  </main>;
 }
