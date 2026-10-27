@@ -1,3 +1,4 @@
+import ServiceControls from './service-controls';
 import ServiceEditor from './service-editor';
 import DraftEditor from './draft-editor';
 import EstimateStatus from './estimate-status';
@@ -26,7 +27,7 @@ export default async function EstimateHistoryPage(){
    const customer=e.customers as unknown as {name:string}|null;
    return <section className="panel" key={e.id}><div className="section-heading"><div><h2>{customer?.name||'Customer'}</h2><p className="muted">{new Date(e.created_at).toLocaleDateString('en-US')} · {e.status} · {items.length} service(s)</p></div><strong>{currency(total)}</strong></div>
     <ul>{items.map(item=><li key={item.id}>{item.description}: {currency(item.pricing_mode==='area'?Number(item.square_feet||0)*Number(item.rate||0):Number(item.fixed_price||0))}</li>)}</ul>
-    {e.status==='draft'&&items.map(item=><ServiceEditor key={item.id} estimateId={e.id} item={item}/>)}{e.notes&&<p className="muted">{e.notes}</p>}
+    {e.status==='draft'&&<><ServiceControls estimateId={e.id}/>{items.map(item=><div key={item.id}><ServiceEditor estimateId={e.id} item={item}/><ServiceControls estimateId={e.id} itemId={item.id}/></div>)}</>}{e.notes&&<p className="muted">{e.notes}</p>}
     <EstimateStatus id={e.id} initial={e.status}/>{e.status==='draft'&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>
    </section>;
   })}
