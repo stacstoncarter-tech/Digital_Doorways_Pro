@@ -24,7 +24,7 @@ export default async function EstimateHistoryPage(){
    return <section className="panel" key={e.id}><div className="section-heading"><div><h2>{customer?.name||'Customer'}</h2><p className="muted">{new Date(e.created_at).toLocaleDateString('en-US')} · {e.status} · {items.length} service(s)</p></div><strong>{currency(total)}</strong></div>
     <ul>{items.map(item=><li key={item.id}>{item.description}: {currency(item.pricing_mode==='area'?Number(item.square_feet||0)*Number(item.rate||0):Number(item.fixed_price||0))}</li>)}</ul>
     {e.notes&&<p className="muted">{e.notes}</p>}
-    <small>Estimate ID: {e.id}</small>
+    <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>
    </section>;
   })}
  </main>;
