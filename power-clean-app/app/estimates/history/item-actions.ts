@@ -18,3 +18,35 @@ export async function updateEstimateItem(input:Input){
  revalidatePath('/estimates/view');
  return {success:true};
 }
+
+async function draftAccess(estimateId:string){
+ const supabase=await createClient();
+ const {data:{user}}=await supabase.auth.getUser();
+ if(!user)return null;
+ const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
+ if(!member||!['owner','admin','staff'].includes(member.role))return null;
+ const {data:estimate}=await supabase.from('estimates').select('id').eq('id',estimateId).eq('business_id',member.business_id).eq('status','draft').maybeSingle();
+ return estimate?supabase:null;
+}
+export async function addDraftService(estimateId:string){
+ const supabase=await draftAccess(estimateId);
+ if(!supabase)return {error:'Only authorized draft estimates can be edited.'};
+ const {count}=await supabase.from('estimate_items').select('id',{count:'exact',head:true}).eq('estimate_id',estimateId);
+ if((count||0)>=40)return {error:'Maximum 40 services per estimate.'};
+ const {error}=await supabase.from('estimate_items').insert({estimate_id:estimateId,description:'New service',pricing_mode:'fixed',fixed_price:0,position:count||0});
+ if(error)return {error:'Could not add service.'};
+ revalidatePath('/estimates/history');
+ revalidatePath('/estimates/view');
+ return {success:true};
+}
+export async function removeDraftService(estimateId:string,itemId:string){
+ const supabase=await draftAccess(estimateId);
+ if(!supabase)return {error:'Only authorized draft estimates can be edited.'};
+ const {count}=await supabase.from('estimate_items').select('id',{count:'exact',head:true}).eq('estimate_id',estimateId);
+ if((count||0)<=1)return {error:'An estimate must keep at least one service.'};
+ const {data,error}=await supabase.from('estimate_items').delete().eq('id',itemId).eq('estimate_id',estimateId).select('id').maybeSingle();
+ if(error||!data)return {error:'Could not remove service.'};
+ revalidatePath('/estimates/history');
+ revalidatePath('/estimates/view');
+ return {success:true};
+}
