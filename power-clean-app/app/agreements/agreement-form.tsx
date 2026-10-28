@@ -3,8 +3,8 @@ import {useState,useTransition} from 'react';
 import {useRouter} from 'next/navigation';
 import {createAgreement} from './actions';
 type Customer={id:string;name:string};
-export default function AgreementForm({customers}:{customers:Customer[]}){
- const [customerId,setCustomerId]=useState('');
+export default function AgreementForm({customers,initialCustomerId=''}:{customers:Customer[];initialCustomerId?:string}){
+ const [customerId,setCustomerId]=useState(initialCustomerId);
  const [type,setType]=useState('service_contract');
  const [title,setTitle]=useState('Power Clean Service Agreement — Draft');
  const [body,setBody]=useState('');
