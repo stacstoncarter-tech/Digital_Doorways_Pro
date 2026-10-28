@@ -1,5 +1,8 @@
 import {createClient} from '@/lib/supabase/server';
 import SignatureForm from '../signature-form';
+import type {Metadata} from 'next';
+export const metadata:Metadata={robots:{index:false,follow:false},referrer:'no-referrer'};
+export const dynamic='force-dynamic';
 export default async function SigningPage({params}:{params:Promise<{token:string}>}){
  const {token}=await params;
  if(!/^[0-9a-f]{64}$/.test(token))return <main className="workspace"><h1>Invalid signing link</h1></main>;
