@@ -15,7 +15,9 @@ export default function AgreementForm({customers}:{customers:Customer[]}){
  const router=useRouter();
  return <section className="panel"><h2>Create agreement draft</h2><p className="muted">Enter approved contract wording. These drafts are not yet sent for signature.</p>
  <div style={{display:'grid',gap:14,maxWidth:680}}>
+ {customers.length===0&&<p>No customers loaded. <a href="/customers">Check Customers</a>.</p>}
  <label>Customer<select value={customerId} onChange={e=>setCustomerId(e.target.value)} style={{display:'block',padding:10,width:'100%'}}><option value="">Select customer</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+ <div>{customers.map(c=><button key={c.id} type="button" onClick={()=>setCustomerId(c.id)}>{c.name}{customerId===c.id?' (selected)':''}</button>)}</div>
  <label>Document type<select value={type} onChange={e=>{setType(e.target.value);setTitle(e.target.value==='liability_release'?'Power Clean Liability Release — Draft':'Power Clean Service Agreement — Draft');}} style={{display:'block',padding:10}}><option value="service_contract">Service contract</option><option value="liability_release">Liability release</option></select></label>
  <label>Title<input value={title} onChange={e=>setTitle(e.target.value)} style={{display:'block',padding:10,width:'100%'}}/></label>
  <label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" checked={testMode} onChange={e=>{setTestMode(e.target.checked);if(e.target.checked){setTitle('TEST ONLY — Power Clean signing workflow');setBody(testText);}else{setTitle('Power Clean Service Agreement — Draft');setBody('');}}}/> Use safe test document wording</label>
