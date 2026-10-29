@@ -25,7 +25,7 @@ export async function sendTrialAgreementSms(agreementId:string,token:string,reci
  const params=new URLSearchParams({To:recipient,From:from,Body:body});
  try{
   const response=await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`,{method:'POST',headers:{Authorization:'Basic '+Buffer.from(`${sid}:${secret}`).toString('base64'),'Content-Type':'application/x-www-form-urlencoded'},body:params.toString(),cache:'no-store'});
-  if(!response.ok)return {error:`Twilio could not accept the message (HTTP ${response.status}). Check the trial recipient, sender and account settings.`};
+  if(!response.ok){const failure=await response.json().catch(()=>null) as {code?:number;message?:string}|null;const code=typeof failure?.code==='number'?` Twilio code ${failure.code}.`:'';const guidance=response.status===401?' Verify the Account SID and current Auth Token belong to the same Twilio account, then redeploy.':' Check the sender, trial recipient, and Twilio account settings.';return {error:`Twilio rejected the request (HTTP ${response.status}).${code}${guidance}`};}
   const result=await response.json() as {sid?:string;status?:string};
   return {success:true,status:result.status||'accepted',messageId:result.sid||''};
  }catch{return {error:'Twilio could not be reached. Try again later.'};}
