@@ -21,6 +21,6 @@ export default async function JobsPage(){
  {j.service_address_id&&addresses.get(j.service_address_id)&&<p>Property: {addresses.get(j.service_address_id)?.address}</p>}
  {names.get(j.customer_id)?.phone&&<p>Phone: {names.get(j.customer_id)?.phone}</p>}
  <p><Link href={'/customers/'+j.customer_id}>Customer profile</Link>{j.estimate_id&&<> · <Link href={'/estimates/view?id='+j.estimate_id}>Estimate</Link></>} · <Link href={'/agreements?customer='+j.customer_id}>Agreements</Link></p>
- <JobEditor job={j}/>{j.status==='completed'&&j.estimate_id&&<CreateInvoiceButton jobId={j.id}/>}<small>Job ID: {j.id}</small></section>)}
+ <p><Link href={"/jobs/"+j.id}>Open field checklist & photos</Link></p><JobEditor job={j}/>{j.status==='completed'&&j.estimate_id&&<CreateInvoiceButton jobId={j.id}/>}<small>Job ID: {j.id}</small></section>)}
  </main>;
 }
