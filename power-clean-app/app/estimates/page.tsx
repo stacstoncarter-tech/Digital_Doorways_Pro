@@ -1,7 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import {useSearchParams} from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { saveEstimate } from './actions';
 import { useEffect } from 'react';
@@ -16,8 +15,8 @@ export default function EstimatesPage() {
   useEffect(()=>{try{setLogo(localStorage.getItem('power-clean-logo')||'')}catch{}},[]);
   function setLogoFile(file?:File){if(!file||file.size>2000000)return;const reader=new FileReader();reader.onload=()=>{const data=String(reader.result||'');setLogo(data);try{localStorage.setItem('power-clean-logo',data)}catch{}};reader.readAsDataURL(file);}
 
-  const searchParams=useSearchParams();
-  const [customer, setCustomer] = useState(searchParams.get('customer')||'');
+  const [customer, setCustomer] = useState('');
+  useEffect(()=>{const id=new URLSearchParams(window.location.search).get('customer');if(id&&/^[0-9a-f-]{36}$/i.test(id))setCustomer(id);},[]);
   const [serviceAddressId,setServiceAddressId]=useState('');
   const [properties,setProperties]=useState<{id:string;customer_id:string;label:string;address:string}[]>([]);
   useEffect(()=>{let active=true;(async()=>{if(!customer){setProperties([]);return;}const supabase=createClient();const {data}=await supabase.from('customer_addresses').select('id,customer_id,label,address').eq('customer_id',customer).order('created_at');if(active)setProperties(data||[]);})();return()=>{active=false};},[customer]);
