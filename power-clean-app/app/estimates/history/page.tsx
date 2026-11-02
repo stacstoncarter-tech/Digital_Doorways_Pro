@@ -2,6 +2,7 @@ import ServiceControls from './service-controls';
 import ServiceEditor from './service-editor';
 import DraftEditor from './draft-editor';
 import EstimateStatus from './estimate-status';
+import EstimateApprovalLink from './approval-link';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -32,7 +33,7 @@ export default async function EstimateHistoryPage(){
     {e.service_address_id&&propertyMap.get(e.service_address_id)&&<p className="muted">Property: {propertyMap.get(e.service_address_id)?.label} — {propertyMap.get(e.service_address_id)?.address}</p>}
     <ul>{items.map(item=><li key={item.id}>{item.description}: {currency(item.pricing_mode==='area'?Number(item.square_feet||0)*Number(item.rate||0):Number(item.fixed_price||0))}</li>)}</ul>
     {e.status==='draft'&&<><ServiceControls estimateId={e.id}/>{items.map(item=><div key={item.id}><ServiceEditor estimateId={e.id} item={item}/><ServiceControls estimateId={e.id} itemId={item.id}/></div>)}</>}{e.notes&&<p className="muted">{e.notes}</p>}
-    <EstimateStatus id={e.id} initial={e.status}/>{e.status==='draft'&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>
+    <EstimateStatus id={e.id} initial={e.status}/>{['draft','sent'].includes(e.status)&&<EstimateApprovalLink id={e.id}/>}{e.status==='draft'&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>
    </section>;
   })}
  </main>;
