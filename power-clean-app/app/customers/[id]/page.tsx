@@ -21,11 +21,11 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  ]);
  const history=[
  ...(agreementsResult.data||[]).map(a=>({id:a.id,title:a.title,status:a.status,date:a.created_at,href:'/agreements/view?id='+encodeURIComponent(a.id)})),
- ...(estimatesResult.data||[]).map(e=>({id:e.id,title:'Estimate',status:e.status,date:e.created_at,href:'/estimates'}))
+ ...(estimatesResult.data||[]).map(e=>({id:e.id,title:'Estimate',status:e.status,date:e.created_at,href:'/estimates/view?id='+encodeURIComponent(e.id)}))
  ].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime());
  return <main className="workspace">
  <header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / CUSTOMERS</span><h1>{customer.name}</h1><p className="muted">Customer since {new Date(customer.created_at).toLocaleDateString('en-US')}</p></div><Link href="/customers">All customers</Link></header>
- <section className="panel"><h2>Customer details</h2><p>Email: {customer.email||'Not provided'}</p><p>Phone: {customer.phone||'Not provided'}</p><p>Original service address: {customer.service_address||'Not provided'}</p><Link href={'/agreements?customer='+encodeURIComponent(id)}>Create agreement</Link></section>
+ <section className="panel"><h2>Customer details</h2><p>Email: {customer.email||'Not provided'}</p><p>Phone: {customer.phone||'Not provided'}</p><p>Original service address: {customer.service_address||'Not provided'}</p><Link href={'/agreements?customer='+encodeURIComponent(id)}>Create agreement</Link> · <Link href={'/estimates?customer='+encodeURIComponent(id)}>Create estimate</Link></section>
  {['owner','admin','staff'].includes(member.role)&&<CustomerProfileEditor customer={customer}/>}
  <CustomerEditors customerId={id} canEdit={['owner','admin','staff'].includes(member.role)}/>
  <section className="panel"><h2>Service properties</h2>{addressesResult.error?<p role="alert">Could not load properties.</p>:(addressesResult.data||[]).length?<ul>{(addressesResult.data||[]).map(a=><li key={a.id}><strong>{a.label}</strong>{a.is_primary?' (Original)':''} — {a.address}{['owner','admin','staff'].includes(member.role)&&<PropertyEditor customerId={id} property={a}/>}</li>)}</ul>:<p>No service properties saved yet.</p>}</section>
