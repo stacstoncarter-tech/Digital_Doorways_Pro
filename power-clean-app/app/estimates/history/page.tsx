@@ -3,6 +3,7 @@ import ServiceEditor from './service-editor';
 import DraftEditor from './draft-editor';
 import EstimateStatus from './estimate-status';
 import EstimateApprovalLink from './approval-link';
+import CreateJobButton from './create-job-button';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -20,7 +21,7 @@ export default async function EstimateHistoryPage(){
  const {data:properties}=propertyIds.length?await supabase.from('customer_addresses').select('id,label,address').eq('business_id',membership.business_id).in('id',propertyIds):{data:[]};
  const propertyMap=new Map((properties||[]).map(p=>[p.id,p]));
  return <main className="workspace">
-  <header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Saved estimates</h1><p className="muted">Your 100 most recent estimates</p></div><Link href="/estimates">New estimate</Link></header>
+  <header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Saved estimates</h1><p className="muted">Your 100 most recent estimates</p></div><div><Link href="/estimates">New estimate</Link> · <Link href="/jobs">Jobs & Scheduling</Link></div></header>
   {error?<section className="panel"><p role="alert">Could not load estimates. Please try again.</p></section>:
   !estimates?.length?<section className="panel"><h2>No saved estimates yet</h2><p>Create an estimate and save it to see it here.</p><Link href="/estimates">Create estimate</Link></section>:
   estimates.map(e=>{
@@ -33,7 +34,7 @@ export default async function EstimateHistoryPage(){
     {e.service_address_id&&propertyMap.get(e.service_address_id)&&<p className="muted">Property: {propertyMap.get(e.service_address_id)?.label} — {propertyMap.get(e.service_address_id)?.address}</p>}
     <ul>{items.map(item=><li key={item.id}>{item.description}: {currency(item.pricing_mode==='area'?Number(item.square_feet||0)*Number(item.rate||0):Number(item.fixed_price||0))}</li>)}</ul>
     {e.status==='draft'&&<><ServiceControls estimateId={e.id}/>{items.map(item=><div key={item.id}><ServiceEditor estimateId={e.id} item={item}/><ServiceControls estimateId={e.id} itemId={item.id}/></div>)}</>}{e.notes&&<p className="muted">{e.notes}</p>}
-    <EstimateStatus id={e.id} initial={e.status}/>{['draft','sent'].includes(e.status)&&<EstimateApprovalLink id={e.id}/>}{e.status==='draft'&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>
+    <EstimateStatus id={e.id} initial={e.status}/>{['draft','sent'].includes(e.status)&&<EstimateApprovalLink id={e.id}/>}{e.status==='accepted'&&<CreateJobButton estimateId={e.id}/>}{e.status==='draft'&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>
    </section>;
   })}
  </main>;
