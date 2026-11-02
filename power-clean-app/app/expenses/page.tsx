@@ -2,8 +2,10 @@ import Link from 'next/link';
 import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 import ExpenseForm from './expense-form';
+import ExportExpenses from './export-expenses';
 const money=(n:number)=>Number(n).toLocaleString('en-US',{style:'currency',currency:'USD'});
-export default async function ExpensesPage(){
+export default async function ExpensesPage({searchParams}:{searchParams:Promise<{category?:string;from?:string;to?:string}>}){
+ const filters=await searchParams;const category=filters.category||'',from=/^\\d{4}-\\d{2}-\\d{2}$/.test(filters.from||'')?filters.from:'',to=/^\\d{4}-\\d{2}-\\d{2}$/.test(filters.to||'')?filters.to:'';
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)return <main className="workspace"><h1>Access pending</h1></main>;
@@ -11,11 +13,13 @@ export default async function ExpensesPage(){
  supabase.from('business_expenses').select('id,category,description,vendor,amount,incurred_at,equipment_id').eq('business_id',member.business_id).order('incurred_at',{ascending:false}).limit(500),
  supabase.from('equipment').select('id,name').eq('business_id',member.business_id).limit(200)
  ]);
- const total=(expenses||[]).reduce((s,e)=>s+Number(e.amount),0);
- const categories=Object.entries((expenses||[]).reduce<Record<string,number>>((a,e)=>{a[e.category]=(a[e.category]||0)+Number(e.amount);return a;},{})).sort((a,b)=>b[1]-a[1]);
+ const shown=(expenses||[]).filter(e=>(!category||e.category===category)&&(!from||e.incurred_at>=from)&&(!to||e.incurred_at<=to));
+ const total=shown.reduce((s,e)=>s+Number(e.amount),0);
+ const categories=Object.entries(shown.reduce<Record<string,number>>((a,e)=>{a[e.category]=(a[e.category]||0)+Number(e.amount);return a;},{})).sort((a,b)=>b[1]-a[1]);
  return <main className="workspace"><header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / FINANCE</span><h1>Business Expenses</h1><p>Recorded expenses: <strong>{money(total)}</strong></p></div><div><Link href="/dashboard">Dashboard</Link> · <Link href="/equipment">Equipment</Link></div></header>
  <section className="panel"><ExpenseForm equipment={equipment||[]}/></section>
+ <section className="panel"><form method="get" style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"end"}}><label>Category<select name="category" defaultValue={category}><option value="">All categories</option>{["fuel","chemicals","equipment","repairs","insurance","marketing","apparel","software","legal","supplies","labor","other"].map(x=><option key={x} value={x}>{x}</option>)}</select></label><label>From<input name="from" type="date" defaultValue={from}/></label><label>Through<input name="to" type="date" defaultValue={to}/></label><button>Apply filters</button><ExportExpenses rows={shown}/></form></section>
  <section className="panel"><h2>Expense categories</h2>{categories.length?<ul>{categories.map(([category,amount])=><li key={category}>{category}: {money(amount)}</li>)}</ul>:<p>No expenses recorded.</p>}</section>
- {error?<section className="panel"><p role="alert">Unable to load expenses.</p></section>:(expenses||[]).map(e=><section className="panel" key={e.id}><div className="section-heading"><div><h2>{e.description}</h2><p>{e.incurred_at} · {e.category} {e.vendor?'· '+e.vendor:''}</p></div><strong>{money(e.amount)}</strong></div></section>)}
- <p className="muted">Summary covers the 500 most recent expense entries. Equipment purchase prices and maintenance costs are not automatically included here; record them as expenses to include them in the expense total.</p></main>;
+ {error?<section className="panel"><p role="alert">Unable to load expenses.</p></section>:shown.map(e=><section className="panel" key={e.id}><div className="section-heading"><div><h2>{e.description}</h2><p>{e.incurred_at} · {e.category} {e.vendor?'· '+e.vendor:''}</p></div><strong>{money(e.amount)}</strong></div></section>)}
+ <p className="muted">Summary and export cover the 500 most recent expense entries, filtered as selected. Equipment purchase prices and maintenance costs are not automatically included here; record them as expenses to include them in the expense total.</p></main>;
 }
