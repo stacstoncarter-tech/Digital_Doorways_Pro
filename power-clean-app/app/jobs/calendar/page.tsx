@@ -13,7 +13,7 @@ export default async function CalendarPage({searchParams}:{searchParams:Promise<
  const {data:customers}=ids.length?await supabase.from('customers').select('id,name').eq('business_id',member.business_id).in('id',ids):{data:[]};
  const names=new Map((customers||[]).map(c=>[c.id,c.name]));
  const grouped=new Map<number,typeof jobs>();
- for(const j of jobs||[]){if(!j.scheduled_start)continue;const localMonth=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit'}).format(new Date(j.scheduled_start)).replace(/\//g,'-');if(localMonth!==current)continue;const d=localDay(j.scheduled_start);grouped.set(d,[...(grouped.get(d)||[]),j]);}
+ for(const j of jobs||[]){if(!j.scheduled_start)continue;const localMonth=(()=>{const p=new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'2-digit'}).formatToParts(new Date(j.scheduled_start));return p.find(x=>x.type==='year')?.value+'-'+p.find(x=>x.type==='month')?.value})();if(localMonth!==current)continue;const d=localDay(j.scheduled_start);grouped.set(d,[...(grouped.get(d)||[]),j]);}
  return <main className="workspace"><header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / SCHEDULING</span><h1>Job Calendar</h1><p>{first.toLocaleDateString('en-US',{timeZone:'UTC',month:'long',year:'numeric'})}</p></div><Link href="/jobs">All jobs</Link></header>
  <section className="panel"><nav style={{display:'flex',justifyContent:'space-between',gap:16}}><Link href={'/jobs/calendar?month='+prev}>Previous month</Link><Link href={'/jobs/calendar?month='+next}>Next month</Link></nav>
  {error&&<p role="alert">Could not load scheduled jobs.</p>}
