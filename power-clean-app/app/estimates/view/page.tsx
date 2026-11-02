@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import {POWER_CLEAN_LOGO} from '@/lib/branding';
 import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 export default async function EstimateView({searchParams}:{searchParams:Promise<{id?:string}>}){
@@ -17,5 +18,5 @@ export default async function EstimateView({searchParams}:{searchParams:Promise<
  const discount=Math.min(subtotal,Number(estimate.discount||0));
  const total=(subtotal-discount)*(1+Number(estimate.tax_rate||0)/100);
  const usd=(n:number)=>n.toLocaleString('en-US',{style:'currency',currency:'USD'});
- return <main className="workspace"><header className="workspace-header"><div><h1>Power Clean Estimate</h1><p>{customer?.name||'Customer'} · {estimate.status}</p></div><Link href="/estimates/history">All estimates</Link></header><section className="panel"><h2>Services</h2>{property&&<p><strong>Service property:</strong> {property.label} — {property.address}</p>}<ul>{items.map(i=><li key={i.id}>{i.description} — {usd(i.pricing_mode==='area'?Number(i.square_feet||0)*Number(i.rate||0):Number(i.fixed_price||0))}</li>)}</ul><p>Subtotal: {usd(subtotal)}</p><p>Discount: {usd(discount)}</p><h2>Total: {usd(total)}</h2>{estimate.notes&&<p>{estimate.notes}</p>}<p className="muted">Reference: {estimate.id}</p><p>Use your browser Print command to print this estimate.</p></section></main>;
+ return <main className="workspace"><header className="workspace-header"><div><img src={POWER_CLEAN_LOGO} alt="Power Clean company logo" style={{display:"block",maxWidth:360,width:"100%",height:"auto",marginBottom:16}}/><h1>Power Clean Estimate</h1><p>{customer?.name||'Customer'} · {estimate.status}</p></div><Link href="/estimates/history">All estimates</Link></header><section className="panel"><div style={{borderBottom:"3px solid #0871bd",paddingBottom:12,marginBottom:20}}><img src={POWER_CLEAN_LOGO} alt="Power Clean" style={{display:"block",maxWidth:370,width:"100%",height:"auto"}}/></div><h2>Services</h2>{property&&<p><strong>Service property:</strong> {property.label} — {property.address}</p>}<ul>{items.map(i=><li key={i.id}>{i.description} — {usd(i.pricing_mode==='area'?Number(i.square_feet||0)*Number(i.rate||0):Number(i.fixed_price||0))}</li>)}</ul><p>Subtotal: {usd(subtotal)}</p><p>Discount: {usd(discount)}</p><h2>Total: {usd(total)}</h2>{estimate.notes&&<p>{estimate.notes}</p>}<p className="muted">Reference: {estimate.id}</p><p>Use your browser Print command to print this estimate.</p></section></main>;
 }
