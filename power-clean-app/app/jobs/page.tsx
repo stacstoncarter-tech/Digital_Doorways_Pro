@@ -2,6 +2,7 @@ import Link from 'next/link';
 import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 import JobEditor from './job-editor';
+import CreateInvoiceButton from './create-invoice-button';
 export default async function JobsPage(){
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();
  if(!user)redirect('/login');
@@ -15,11 +16,11 @@ export default async function JobsPage(){
  ]);
  const names=new Map((customers||[]).map(c=>[c.id,c])),addresses=new Map((properties||[]).map(p=>[p.id,p]));
  const sorted=[...(jobs||[])].sort((a,b)=>{if(a.status==='completed'&&b.status!=='completed')return 1;if(b.status==='completed'&&a.status!=='completed')return -1;return (a.scheduled_start||'9999').localeCompare(b.scheduled_start||'9999')});
- return <main className="workspace"><header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Jobs & Scheduling</h1><p>Schedule accepted estimates and track field work.</p></div><Link href="/estimates/history">Saved estimates</Link></header>
+ return <main className="workspace"><header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Jobs & Scheduling</h1><p>Schedule accepted estimates and track field work.</p></div><div><Link href="/estimates/history">Saved estimates</Link> · <Link href="/invoices">Invoices</Link></div></header>
  {error?<section className="panel"><p role="alert">Unable to load jobs.</p></section>:!sorted.length?<section className="panel"><h2>No jobs yet</h2><p>Accept an estimate, then select Create job in Saved Estimates.</p><Link href="/estimates/history">View estimates</Link></section>:sorted.map(j=><section className="panel" key={j.id}><div className="section-heading"><div><h2>{names.get(j.customer_id)?.name||'Customer'}</h2><p className="muted">Status: {j.status.replace('_',' ')} · {j.scheduled_start?new Date(j.scheduled_start).toLocaleString('en-US'):'Not scheduled'}</p></div><strong>{j.scheduled_end?'Until '+new Date(j.scheduled_end).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):''}</strong></div>
  {j.service_address_id&&addresses.get(j.service_address_id)&&<p>Property: {addresses.get(j.service_address_id)?.address}</p>}
  {names.get(j.customer_id)?.phone&&<p>Phone: {names.get(j.customer_id)?.phone}</p>}
  <p><Link href={'/customers/'+j.customer_id}>Customer profile</Link>{j.estimate_id&&<> · <Link href={'/estimates/view?id='+j.estimate_id}>Estimate</Link></>} · <Link href={'/agreements?customer='+j.customer_id}>Agreements</Link></p>
- <JobEditor job={j}/><small>Job ID: {j.id}</small></section>)}
+ <JobEditor job={j}/>{j.status==='completed'&&j.estimate_id&&<CreateInvoiceButton jobId={j.id}/>}<small>Job ID: {j.id}</small></section>)}
  </main>;
 }
