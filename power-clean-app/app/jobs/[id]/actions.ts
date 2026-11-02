@@ -1,0 +1,28 @@
+'use server';
+import {createClient} from '@/lib/supabase/server';
+import {revalidatePath} from 'next/cache';
+type State={error:string;success:string};
+async function context(jobId:string){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user||!/^[0-9a-f-]{36}$/i.test(jobId))return null;const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();if(!member||!['owner','admin','staff'].includes(member.role))return null;const {data:job}=await supabase.from('jobs').select('id').eq('id',jobId).eq('business_id',member.business_id).maybeSingle();if(!job)return null;return {supabase,user,member};}
+export async function addChecklistItem(_state:State,f:FormData):Promise<State>{
+ const jobId=String(f.get('job_id')||''),title=String(f.get('title')||'').trim();const ctx=await context(jobId);
+ if(!ctx)return {error:'Access denied.',success:''};if(!title||title.length>200)return {error:'Enter a checklist item.',success:''};
+ const {error}=await ctx.supabase.from('job_checklist_items').insert({job_id:jobId,business_id:ctx.member.business_id,title,created_by:ctx.user.id});
+ if(error)return {error:'Could not add item.',success:''};revalidatePath('/jobs/'+jobId);return {error:'',success:'Checklist item added.'};
+}
+export async function toggleChecklistItem(jobId:string,id:string,complete:boolean){
+ const ctx=await context(jobId);if(!ctx||!/^[0-9a-f-]{36}$/i.test(id))return {error:'Access denied.'};
+ const {error}=await ctx.supabase.from('job_checklist_items').update({is_complete:complete,completed_at:complete?new Date().toISOString():null,completed_by:complete?ctx.user.id:null}).eq('id',id).eq('job_id',jobId).eq('business_id',ctx.member.business_id);
+ if(error)return {error:'Could not update checklist.'};revalidatePath('/jobs/'+jobId);return {success:true};
+}
+export async function uploadJobPhoto(_state:State,f:FormData):Promise<State>{
+ const jobId=String(f.get('job_id')||''),phase=String(f.get('phase')||''),caption=String(f.get('caption')||'').trim(),file=f.get('photo');
+ const ctx=await context(jobId);if(!ctx)return {error:'Access denied.',success:''};
+ if(!['before','during','after'].includes(phase)||caption.length>300||!(file instanceof File)||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size<=0||file.size>10*1024*1024)return {error:'Upload a JPEG, PNG, or WebP image under 10 MB.',success:''};
+ const ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
+ const path=ctx.member.business_id+'/'+jobId+'/'+crypto.randomUUID()+'.'+ext;
+ const {error:uploadError}=await ctx.supabase.storage.from('power-clean-job-photos').upload(path,file,{contentType:file.type,upsert:false});
+ if(uploadError)return {error:'Photo upload failed.',success:''};
+ const {error}=await ctx.supabase.from('job_photos').insert({job_id:jobId,business_id:ctx.member.business_id,storage_path:path,phase,caption,created_by:ctx.user.id});
+ if(error){await ctx.supabase.storage.from('power-clean-job-photos').remove([path]);return {error:'Could not save photo record.',success:''};}
+ revalidatePath('/jobs/'+jobId);return {error:'',success:'Photo saved.'};
+}
