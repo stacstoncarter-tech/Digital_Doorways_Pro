@@ -31,15 +31,8 @@ export async function setInvoiceStatus(id:string,status:string):Promise<Result>{
 export async function recordPayment(_state:{error:string;success:string},form:FormData){
  const ctx=await context();if(!ctx)return {error:'Access denied.',success:''};
  const id=String(form.get('invoiceId')||''),amount=Number(form.get('amount')),method=String(form.get('method')||''),reference=String(form.get('reference')||'').trim();
- if(!/^[0-9a-f-]{36}$/i.test(id)||!Number.isFinite(amount)||amount<=0||Math.round(amount*100)!==amount*100||!['cash','check','card','bank_transfer','other'].includes(method)||reference.length>200)return {error:'Check payment details.',success:''};
- const {data:invoice}=await ctx.supabase.from('invoices').select('id,status,total').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
- if(!invoice||!['sent','partially_paid'].includes(invoice.status))return {error:'Invoice must be sent before recording payment.',success:''};
- const {data:previous}=await ctx.supabase.from('invoice_payments').select('amount').eq('invoice_id',id).eq('business_id',ctx.member.business_id);
- const paid=(previous||[]).reduce((s,p)=>s+Number(p.amount),0);
- if(amount>Number(invoice.total)-paid+0.001)return {error:'Payment exceeds outstanding balance.',success:''};
- const {error}=await ctx.supabase.from('invoice_payments').insert({invoice_id:id,business_id:ctx.member.business_id,recorded_by:ctx.user.id,amount,method,reference});
- if(error)return {error:'Could not record payment.',success:''};
- const newStatus=paid+amount>=Number(invoice.total)-0.001?'paid':'partially_paid';
- await ctx.supabase.from('invoices').update({status:newStatus,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
+ if(!/^[0-9a-f-]{36}$/i.test(id)||!Number.isFinite(amount)||amount<=0||Math.abs(Math.round(amount*100)-amount*100)>0.000001||!['cash','check','card','bank_transfer','other'].includes(method)||reference.length>200)return {error:'Check payment details.',success:''};
+ const {error}=await ctx.supabase.rpc('record_invoice_payment',{p_invoice_id:id,p_amount:amount,p_method:method,p_reference:reference});
+ if(error)return {error:'Payment could not be recorded. Verify the outstanding balance and invoice status.',success:''};
  revalidatePath('/invoices');return {error:'',success:'Payment recorded.'};
 }
