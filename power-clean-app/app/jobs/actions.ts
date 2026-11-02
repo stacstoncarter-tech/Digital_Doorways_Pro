@@ -35,9 +35,9 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
  if(['scheduled','in_progress','completed'].includes(status)){
   const {data:job}=await ctx.supabase.from('jobs').select('customer_id').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
   if(!job)return {error:'Job not found.',success:''};
-  const {data:docs,error:docError}=await ctx.supabase.from('customer_agreements').select('document_type,status').eq('business_id',ctx.member.business_id).eq('customer_id',job.customer_id).in('document_type',['service_contract','liability_release']).eq('status','signed');
+  const {data:docs,error:docError}=await ctx.supabase.from('customer_agreements').select('document_type,status,title,body').eq('business_id',ctx.member.business_id).eq('customer_id',job.customer_id).in('document_type',['service_contract','liability_release']).eq('status','signed');
   if(docError)return {error:'Unable to verify signed documents. Try again.',success:''};
-  const types=new Set((docs||[]).map(d=>d.document_type));
+  const types=new Set((docs||[]).filter(d=>!/^TEST ONLY\b/i.test(d.title.trim())&&!/^TEST ONLY\b/i.test(d.body.trim())&&!/DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE/i.test(d.body)).map(d=>d.document_type));
   if(!types.has('service_contract')||!types.has('liability_release'))return {error:'A signed service contract and liability release are required before scheduling or starting work.',success:''};
  }
  const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
