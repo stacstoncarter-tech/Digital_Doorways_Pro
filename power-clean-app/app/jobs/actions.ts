@@ -24,8 +24,9 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
  const id=String(form.get('id')||''),status=String(form.get('status')||''),notes=String(form.get('notes')||'').trim();
  if(!/^[0-9a-f-]{36}$/i.test(id)||!['unscheduled','scheduled','in_progress','completed','canceled'].includes(status)||notes.length>4000)return {error:'Invalid job details.',success:''};
  const start=String(form.get('start')||''),end=String(form.get('end')||'');
+ if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end))))return {error:'Check the service dates.',success:''};
  const startIso=start?new Date(start).toISOString():null,endIso=end?new Date(end).toISOString():null;
- if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end)))||(endIso&&(!startIso||endIso<=startIso)))return {error:'Check the service date and arrival window.',success:''};
+ if(endIso&&(!startIso||endIso<=startIso))return {error:'Check the service date and arrival window.',success:''};
  if(status==='scheduled'&&!startIso)return {error:'A scheduled job needs a start date.',success:''};
  const {data:old}=await ctx.supabase.from('jobs').select('status,completed_at').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!old)return {error:'Job not found.',success:''};
