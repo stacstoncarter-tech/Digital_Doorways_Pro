@@ -1,6 +1,7 @@
 'use client';
 import {useState,useTransition} from 'react';
 import {useRouter} from 'next/navigation';
+import Link from 'next/link';
 import {createAgreement} from './actions';
 type Customer={id:string;name:string};
 export default function AgreementForm({customers,initialCustomerId=''}:{customers:Customer[];initialCustomerId?:string}){
@@ -15,7 +16,7 @@ export default function AgreementForm({customers,initialCustomerId=''}:{customer
  const router=useRouter();
  return <section className="panel"><h2>Create agreement draft</h2><p className="muted">Enter approved contract wording. These drafts are not yet sent for signature.</p>
  <div style={{display:'grid',gap:14,maxWidth:680}}>
- {customers.length===0&&<p>No customers loaded. <a href="/customers">Check Customers</a>.</p>}
+ {customers.length===0&&<p>No customers loaded. <Link href="/customers">Check Customers</Link>.</p>}
  <label>Customer<select value={customerId} onChange={e=>setCustomerId(e.target.value)} style={{display:'block',padding:10,width:'100%'}}><option value="">Select customer</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
  <div>{customers.map(c=><button key={c.id} type="button" onClick={()=>setCustomerId(c.id)}>{c.name}{customerId===c.id?' (selected)':''}</button>)}</div>
  <label>Document type<select value={type} onChange={e=>{setType(e.target.value);setTitle(e.target.value==='liability_release'?'Power Clean Liability Release — Draft':'Power Clean Service Agreement — Draft');}} style={{display:'block',padding:10}}><option value="service_contract">Service contract</option><option value="liability_release">Liability release</option></select></label>
