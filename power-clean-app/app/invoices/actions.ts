@@ -8,6 +8,8 @@ export async function invoiceCompletedJob(jobId:string):Promise<Result>{
  if(!/^[0-9a-f-]{36}$/i.test(jobId))return {error:'Invalid job.'};
  const {data:job}=await ctx.supabase.from('jobs').select('id,customer_id,estimate_id,status').eq('id',jobId).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!job||job.status!=='completed'||!job.estimate_id)return {error:'A completed job with an estimate is required.'};
+ const {data:existingInvoice}=await ctx.supabase.from('invoices').select('id').eq('business_id',ctx.member.business_id).eq('job_id',job.id).limit(1).maybeSingle();
+ if(existingInvoice)return {error:'An invoice already exists for this job.'};
  const {data:estimate}=await ctx.supabase.from('estimates').select('id,discount,tax_rate,estimate_items(description,pricing_mode,square_feet,rate,fixed_price,position)').eq('id',job.estimate_id).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!estimate)return {error:'Estimate not found.'};
  const items=(estimate.estimate_items||[]).map(i=>({description:i.description,quantity:i.pricing_mode==='area'?Number(i.square_feet||0):1,unit_price:i.pricing_mode==='area'?Number(i.rate||0):Number(i.fixed_price||0),position:i.position})).filter(i=>i.quantity>0&&i.unit_price>=0);
