@@ -10,7 +10,7 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<{
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)return <main className="workspace"><h1>Access pending</h1></main>;
  const business=member.business_id;
- const [{data:payments,payError},{data:expenses,expenseError},{data:jobs,jobError},{data:leads,leadError},{data:invoices,invoiceError}]=await Promise.all([
+ const [{data:payments,error:payError},{data:expenses,error:expenseError},{data:jobs,error:jobError},{data:leads,error:leadError},{data:invoices,error:invoiceError}]=await Promise.all([
  supabase.from('invoice_payments').select('amount,received_at').eq('business_id',business).gte('received_at',from+'T00:00:00').lt('received_at',to+'T23:59:59.999').limit(1000),
  supabase.from('business_expenses').select('amount,category,incurred_at').eq('business_id',business).gte('incurred_at',from).lte('incurred_at',to).limit(1000),
  supabase.from('jobs').select('status,completed_at,created_at').eq('business_id',business).limit(1000),
