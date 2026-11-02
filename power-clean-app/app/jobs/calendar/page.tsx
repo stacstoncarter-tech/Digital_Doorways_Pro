@@ -5,7 +5,9 @@ export default async function CalendarPage({searchParams}:{searchParams:Promise<
  const query=await searchParams;
  const now=new Date(),current=/^\d{4}-(0[1-9]|1[0-2])$/.test(query.month||'')?query.month!:now.toISOString().slice(0,7);
  const [year,month]=current.split('-').map(Number),first=new Date(Date.UTC(year,month-1,1)),last=new Date(Date.UTC(year,month,0)),start=first.getUTCDay(),days=last.getUTCDate();
- const prev=new Date(Date.UTC(year,month-2,1)).toISOString().slice(0,7),next=new Date(Date.UTC(year,month,1)).toISOString().slice(0,7);\n const zone='America/New_York';\n const localDay=(date:string)=>Number(new Intl.DateTimeFormat('en-US',{timeZone:zone,day:'2-digit'}).format(new Date(date)));
+ const prev=new Date(Date.UTC(year,month-2,1)).toISOString().slice(0,7),next=new Date(Date.UTC(year,month,1)).toISOString().slice(0,7);
+ const zone='America/New_York';
+ const localDay=(date:string)=>Number(new Intl.DateTimeFormat('en-US',{timeZone:zone,day:'2-digit'}).format(new Date(date)));
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)return <main className="workspace"><h1>Access pending</h1></main>;
  const {data:jobs,error}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,scheduled_end').eq('business_id',member.business_id).gte('scheduled_start',new Date(Date.UTC(year,month-1,1)-6*3600000).toISOString()).lt('scheduled_start',new Date(Date.UTC(year,month,1)+6*3600000).toISOString()).order('scheduled_start').limit(500);
