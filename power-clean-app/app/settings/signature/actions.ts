@@ -18,3 +18,16 @@ export async function setSignatureAuthorization(approved:boolean){
  revalidatePath('/settings/signature');
  return {success:true};
 }
+
+export async function saveSignatureArtwork(dataUrl:string){
+ if(!/^data:image\/(png|webp);base64,[A-Za-z0-9+/=]+$/.test(dataUrl)||dataUrl.length>350000)return {error:'Upload a PNG or WebP signature image under 250 KB.'};
+ const supabase=await createClient();
+ const {data:{user}}=await supabase.auth.getUser();
+ if(!user)return {error:'Sign in again.'};
+ const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).eq('role','owner').limit(1).maybeSingle();
+ if(!member)return {error:'Owner access required.'};
+ const {error}=await supabase.from('business_signature_authorizations').update({signature_image_data:dataUrl,updated_at:new Date().toISOString()}).eq('business_id',member.business_id).eq('authorized_by',user.id).is('revoked_at',null);
+ if(error)return {error:'Unable to save signature image.'};
+ revalidatePath('/settings/signature');
+ return {success:true};
+}
