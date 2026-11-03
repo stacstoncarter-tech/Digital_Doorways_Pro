@@ -10,6 +10,7 @@ export async function prepareSigningLink(id:string,reissue=false){
  if(!member||!['owner','admin'].includes(member.role))return {error:'Only an owner or admin can prepare signing links.'};
  const {data:authorization}=await supabase.from('business_signature_authorizations').select('authorized_by,signer_name,signer_title,revoked_at,signature_image_data').eq('business_id',member.business_id).maybeSingle();
  if(!authorization||authorization.revoked_at)return {error:'Authorize your business signature in Settings before preparing customer agreements.'};
+ if(!authorization.signature_image_data)return {error:'Upload your handwritten signature in Owner Signature settings before sending agreements.'};
  if(authorization.authorized_by!==user.id)return {error:'The business owner must personally approve this agreement for sending.'};
  const {data:agreement}=await supabase.from('customer_agreements').select('title,body,document_type').eq('id',id).eq('business_id',member.business_id).maybeSingle();
  if(!agreement)return {error:'Agreement not found.'};
