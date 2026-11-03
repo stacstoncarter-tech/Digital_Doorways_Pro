@@ -37,7 +37,8 @@ export async function prepareSigningLink(id:string,reissue=false){
  const hash=createHash('sha256').update(token).digest('hex');
  const expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
  const {data,error}=await supabase.from('customer_agreements').update({status:'sent',signing_token_hash:hash,signing_expires_at:expires,body:preparedBody,contractor_signer_name:authorization.signer_name,contractor_signer_title:authorization.signer_title,contractor_signed_at:new Date().toISOString(),contractor_authorized_by:user.id,contractor_signature_image_data:authorization.signature_image_data||null}).eq('id',id).eq('business_id',member.business_id).eq('status',reissue?'sent':'draft').select('id').maybeSingle();
- if(error||!data)return {error:'Could not prepare the signing link. The agreement may already be signed.'};
+ if(error)return {error:'Signing link could not be saved ('+error.code+'): '+error.message};
+ if(!data)return {error:'No draft agreement was updated. Refresh the agreement list and confirm it is still in Draft status.'};
  revalidatePath('/agreements');
  return {token};
 }
