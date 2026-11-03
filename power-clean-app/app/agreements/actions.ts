@@ -13,7 +13,7 @@ export async function createAgreement(customerId:string,documentType:string,titl
  const {data:primaryAddress}=await supabase.from('customer_addresses').select('address').eq('business_id',member.business_id).eq('customer_id',customer.id).eq('is_primary',true).limit(1).maybeSingle();
  const address=primaryAddress?.address||customer.service_address||'';
  const today=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'long',day:'numeric'}).format(new Date());
- const replacements:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[NAME]':customer.name,'[DATE]':today};
+ const replacements:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[NAME]':customer.name,'[DATE]':today};
  let personalized=body.trim();
  for(const [placeholder,value] of Object.entries(replacements)){if(value)personalized=personalized.replaceAll(placeholder,value);}
  if(!/^TEST ONLY\\b/i.test(title.trim())&&!/^TEST ONLY\\b/i.test(personalized)&&(!address||/\\[(?:CUSTOMER FULL NAME|PROPERTY ADDRESS|NAME|DATE)\\]/.test(personalized)))return {error:'Customer name, service address, or required details are missing. Complete the customer profile and placeholders first.'};
