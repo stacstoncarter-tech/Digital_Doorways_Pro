@@ -5,15 +5,15 @@ import Link from 'next/link';
 import {createAgreement} from './actions';
 import {SERVICE_TEMPLATE,LIABILITY_TEMPLATE} from './templates';
 type Customer={id:string;name:string};
-export default function AgreementForm({customers,initialCustomerId=''}:{customers:Customer[];initialCustomerId?:string}){
+export default function AgreementForm({customers,initialCustomerId='',initialTemplate=''}:{customers:Customer[];initialCustomerId?:string;initialTemplate?:string}){
  const [customerId,setCustomerId]=useState(initialCustomerId);
- const [type,setType]=useState('service_contract');
- const [title,setTitle]=useState('Power Clean Service Agreement — Draft');
- const [body,setBody]=useState('');
+ const [type,setType]=useState(initialTemplate==='liability_release'?'liability_release':'service_contract');
+ const [title,setTitle]=useState(initialTemplate==='liability_release'?'Power Clean Property Protection & Liability Acknowledgment — Draft':initialTemplate==='service_contract'?'Power Clean Pressure & Soft Washing Service Agreement — Draft':'Power Clean Service Agreement — Draft');
+ const [body,setBody]=useState(initialTemplate==='liability_release'?LIABILITY_TEMPLATE:initialTemplate==='service_contract'?SERVICE_TEMPLATE:'');
  const [pending,start]=useTransition();
  const [message,setMessage]=useState('');
  const [testMode,setTestMode]=useState(false);
- const [templateLoaded,setTemplateLoaded]=useState(false);
+ const [templateLoaded,setTemplateLoaded]=useState(Boolean(initialTemplate));
  const testText='TEST ONLY — NOT A LEGAL AGREEMENT OR LIABILITY RELEASE. This document is solely for checking the Power Clean electronic signing workflow. No cleaning service is ordered, no payment is due, and no liability is waived by signing this test document.';
  const router=useRouter();
  return <section className="panel"><h2>Create agreement draft</h2><p className="muted">Enter approved contract wording. These drafts are not yet sent for signature.</p>
