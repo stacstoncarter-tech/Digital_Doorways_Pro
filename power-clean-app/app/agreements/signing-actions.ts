@@ -13,7 +13,7 @@ export async function prepareSigningLink(id:string,reissue=false){
  if(authorization.authorized_by!==user.id)return {error:'The business owner must personally approve this agreement for sending.'};
  const {data:agreement}=await supabase.from('customer_agreements').select('title,body,document_type').eq('id',id).eq('business_id',member.business_id).maybeSingle();
  if(!agreement)return {error:'Agreement not found.'};
- if(!/^TEST ONLY\\b/i.test(agreement.title)&&!/^TEST ONLY\\b/i.test(agreement.body)&&(/\\bDRAFT\\b/i.test(agreement.title)||/DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE/i.test(agreement.body)||/\\[[A-Z][A-Z /-]+\\]/.test(agreement.body)))return {error:'Finalize the agreement and resolve all placeholders before sending it for signature.'};
+ if(!agreement.title.toUpperCase().startsWith('TEST ONLY')&&!agreement.body.toUpperCase().startsWith('TEST ONLY')&&(agreement.title.toUpperCase().includes('DRAFT')||agreement.body.includes('DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE')||/\[[A-Z][A-Z /-]+\]/.test(agreement.body)))return {error:'Finalize the agreement and resolve all placeholders before sending it for signature.'};
  const token=randomBytes(32).toString('hex');
  const hash=createHash('sha256').update(token).digest('hex');
  const expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
