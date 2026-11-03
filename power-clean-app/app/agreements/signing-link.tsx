@@ -13,6 +13,7 @@ export default function SigningLink({id,email,phone,customerName,reissue=false}:
  const emailUrl=email?`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent('Power Clean agreement for signature')}&body=${encodeURIComponent(body)}`:'';
  const smsUrl=phone?`sms:${encodeURIComponent(phone)}?body=${encodeURIComponent(body)}`:'';
  return <div style={{marginTop:8}}>
+ {message&&<p role="alert" aria-live="assertive" style={{padding:'12px',border:'1px solid currentColor',borderRadius:8,maxWidth:650,fontWeight:600}}>{message}</p>}
  <button type="button" disabled={pending} onClick={()=>start(async()=>{
  if(!window.confirm('I have reviewed this agreement and approve applying my Power Clean electronic signature. Prepare the signing link?')){setMessage('Signing link preparation canceled.');return;}
  let result;
@@ -28,6 +29,5 @@ export default function SigningLink({id,email,phone,customerName,reissue=false}:
  {smsUrl&&<a href={smsUrl}>Compose text</a>}
  </div>{phone&&<div style={{display:'grid',gap:8}}><label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" checked={smsConsent} onChange={e=>setSmsConsent(e.target.checked)}/> I confirm this test recipient agreed to receive an SMS.</label><button type="button" disabled={!smsConsent||sending} onClick={async()=>{setSending(true);try{const result=await sendTrialAgreementSms(id,link.split('/').pop()||'',phone,smsConsent);setMessage(result.error||`Twilio accepted test SMS (${result.status}). Delivery not yet confirmed.`);}catch{setMessage('SMS request failed before Twilio accepted it. Please try again and report this message.');}finally{setSending(false);}}}>{sending?'Sending…':'Send trial SMS via Twilio'}</button></div>}<small>Verify the recipient and link before sending. This page will not send messages automatically.</small>
  </div>}
- {message&&<p role="status">{message}</p>}
  </div>;
 }
