@@ -2,7 +2,7 @@ import Link from 'next/link';
 import {createClient} from '@/lib/supabase/server';
 import {POWER_CLEAN_LOGO} from '@/lib/branding';
 import type {Metadata} from 'next';
-export const metadata:Metadata={title:'Power Clean | Customer Agreements',description:'Review and electronically sign your Power Clean customer agreements.',openGraph:{title:'Power Clean | Customer Agreements',description:'Secure customer agreement signing for Power Clean.',type:'website',images:[{url:'https://power-clean-operations.vercel.app/og-image',width:640,height:352,alt:'Power Clean company logo'}]},twitter:{card:'summary_large_image',title:'Power Clean | Customer Agreements',images:['https://power-clean-operations.vercel.app/og-image']},robots:{index:false,follow:false}};
+export const metadata:Metadata={title:'Power Clean | Customer Agreements',description:'Review and electronically sign your Power Clean customer agreements.',openGraph:{title:'Power Clean | Customer Agreements',description:'Secure customer agreement signing for Power Clean.',type:'website',images:[{url:'https://power-clean-operations.vercel.app/og-image',width:94,height:96,alt:'Power Clean company emblem'}]},twitter:{card:'summary_large_image',title:'Power Clean | Customer Agreements',images:['https://power-clean-operations.vercel.app/og-image']},robots:{index:false,follow:false}};
 export const dynamic='force-dynamic';
 export default async function BundlePage({searchParams}:{searchParams:Promise<{service?:string;liability?:string}>}){
  const {service='',liability=''}=await searchParams;
