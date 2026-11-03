@@ -14,8 +14,9 @@ export default function SigningLink({id,email,phone,customerName,reissue=false}:
  const smsUrl=phone?`sms:${encodeURIComponent(phone)}?body=${encodeURIComponent(body)}`:'';
  return <div style={{marginTop:8}}>
  <button type="button" disabled={pending} onClick={()=>start(async()=>{
- if(!window.confirm('I have reviewed this specific agreement and approve applying my Power Clean electronic signature and preparing its customer signing link. Continue?'))return;
- const result=await prepareSigningLink(id,reissue);
+ if(!window.confirm('I have reviewed this agreement and approve applying my Power Clean electronic signature. Prepare the signing link?')){setMessage('Signing link preparation canceled.');return;}
+ let result;
+ try{result=await prepareSigningLink(id,reissue);}catch{setMessage('Unable to prepare the link. Refresh the page and try again.');return;}
  if(result.token){setCopied(false);setLink(window.location.origin+'/sign/'+result.token);setMessage('Signing link ready. Choose how to share it. Sending is manual.');}
  else setMessage(result.error||'Could not create link.');
  })}>{pending?'Preparing…':reissue?'Replace signing link':'Prepare signing link'}</button>
