@@ -1,7 +1,5 @@
-/** Editable starting points only. Obtain Florida legal review before customer use. */
+/** Business agreement templates. Legal review is recommended before production use. */
 export const SERVICE_TEMPLATE = `POWER CLEAN — PRESSURE & SOFT WASHING SERVICE AGREEMENT
-DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE
-
 Customer: [CUSTOMER FULL NAME]
 Service address: [PROPERTY ADDRESS]
 Estimate / scope reference: [ESTIMATE NUMBER OR ATTACHMENT]
@@ -37,13 +35,9 @@ Customer confirms they have reviewed the scope and terms and are authorized to a
 
 Customer name: [NAME]
 Power Clean representative: [NAME]
-Date: [DATE]
-
-IMPORTANT: This is an editable business template, not legal advice or a final attorney-reviewed contract.`;
+Date: [DATE]`;
 
 export const LIABILITY_TEMPLATE = `POWER CLEAN — PROPERTY CONDITION & LIABILITY ACKNOWLEDGMENT
-DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE
-
 Customer: [CUSTOMER FULL NAME]
 Service address: [PROPERTY ADDRESS]
 Related estimate / service: [REFERENCE]
@@ -71,6 +65,4 @@ By signing, Customer confirms that they have read this document, had an opportun
 
 Customer name: [NAME]
 Power Clean representative: [NAME]
-Date: [DATE]
-
-IMPORTANT: This is a property-risk acknowledgment, not a blanket waiver or legal advice. Have Florida counsel review before customer use.`;
+Date: [DATE]`;
