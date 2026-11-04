@@ -31,7 +31,12 @@ export async function prepareSigningLink(id:string,reissue=false){
  if(!agreement.title.toUpperCase().startsWith('TEST ONLY')&&!preparedBody.toUpperCase().startsWith('TEST ONLY')){
   if(!address)return {error:'Add a service address to this customer profile before sending.'};
   if(preparedBody.includes('DRAFT TEMPLATE')||agreement.title.toUpperCase().includes('DRAFT'))return {error:'This is an unreviewed draft template. An approved final contract version is required before customer signing.'};
-  if(/\\[[A-Z][A-Z /-]+\\]/.test(preparedBody))return {error:'Some service details are not yet recorded (such as price, estimate or date). Complete the estimate and schedule before sending.'};
+  const missing:string[]=[];
+  if(preparedBody.includes('[AMOUNT]'))missing.push('an accepted estimate with priced items');
+  if(preparedBody.includes('[ESTIMATE NUMBER OR ATTACHMENT]')||preparedBody.includes('[REFERENCE]'))missing.push('an accepted estimate');
+  if(preparedBody.includes('[DATE / WINDOW]'))missing.push('a scheduled service date');
+  if(/\\[[A-Z][A-Z /-]+\\]/.test(preparedBody)&&!missing.length)missing.push('required customer or service details');
+  if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
  }
  const token=randomBytes(32).toString('hex');
  const hash=createHash('sha256').update(token).digest('hex');
