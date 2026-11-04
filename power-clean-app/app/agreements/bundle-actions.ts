@@ -3,12 +3,26 @@ import {createClient} from '@/lib/supabase/server';
 import {prepareSigningLink} from './signing-actions';
 import {createAgreement} from './actions';
 import {SERVICE_TEMPLATE,LIABILITY_TEMPLATE} from './templates';
-export async function prepareAgreementBundle(customerId:string){
+export async function prepareAgreementBundle(customerId:string,testMode=false){
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  if(!user)return {error:'Sign in again.'};
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).eq('role','owner').maybeSingle();
  if(!member)return {error:'The business owner must approve both documents.'};
+ if(testMode){
+  const testBody='TEST ONLY — NOT A LEGAL AGREEMENT OR LIABILITY RELEASE. This document solely tests the Power Clean electronic signing workflow. No cleaning services are ordered, no payment is due, and no liability is waived.';
+  const ids:string[]=[];
+  for(const [type,title] of [['service_contract','TEST ONLY — Power Clean Service Agreement'],['liability_release','TEST ONLY — Power Clean Property Condition & Liability Acknowledgment']] as const){
+   const {data:created,error:insertError}=await supabase.from('customer_agreements').insert({business_id:member.business_id,customer_id:customerId,created_by:user.id,document_type:type,title,body:testBody}).select('id').single();
+   if(insertError||!created)return {error:'Could not create test agreement: '+(insertError?.message||'Unknown error')};
+   ids.push(created.id);
+  }
+  const first=await prepareSigningLink(ids[0]);
+  if(!first.token)return {error:'Test Service Agreement: '+(first.error||'Signing link failed')};
+  const second=await prepareSigningLink(ids[1]);
+  if(!second.token)return {error:'Test Liability Acknowledgment: '+(second.error||'Signing link failed')};
+  return {serviceToken:first.token,liabilityToken:second.token};
+ }
  const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title').eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
  if(error)return {error:'Could not load customer agreements.'};
  const service=docs?.find(d=>d.document_type==='service_contract');
