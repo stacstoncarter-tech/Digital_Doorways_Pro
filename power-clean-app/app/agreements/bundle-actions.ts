@@ -25,9 +25,10 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  }
  const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title,body').eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
  if(error)return {error:'Could not load customer agreements.'};
- const service=docs?.find(d=>d.document_type==='service_contract'&&d.body===SERVICE_TEMPLATE);
- const liability=docs?.find(d=>d.document_type==='liability_release'&&d.body===LIABILITY_TEMPLATE);
- const olderDrafts=(docs||[]).filter(d=>!((d.document_type==='service_contract'&&d.body===SERVICE_TEMPLATE)||(d.document_type==='liability_release'&&d.body===LIABILITY_TEMPLATE)));
+ const matchesMaster=(body:string,template:string)=>body.startsWith(template.slice(0,75));
+ const service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
+ const liability=docs?.find(d=>d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE));
+ const olderDrafts=(docs||[]).filter(d=>!((d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE))||(d.document_type==='liability_release'&&d.body===LIABILITY_TEMPLATE)));
  if(olderDrafts.length)return {error:'Older or customized agreement drafts exist for this customer. Review or void them before preparing the current master templates. No signing links were issued.'};
  if(!service||!liability){
   const created:string[]=[];
