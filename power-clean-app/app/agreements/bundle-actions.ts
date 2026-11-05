@@ -62,3 +62,38 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  }
  return {serviceToken:first.token,liabilityToken:second.token};
 }
+
+/** Owner-only, isolated test document. Never changes a real customer agreement. */
+export async function testRollbackSafeguard(customerId:string){
+ const supabase=await createClient();
+ const {data:{user}}=await supabase.auth.getUser();
+ if(!user)return {passed:false,error:'Sign in again.'};
+ const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).eq('role','owner').maybeSingle();
+ if(!member)return {passed:false,error:'Only the business owner can run this test.'};
+ const {data:customer}=await supabase.from('customers').select('id').eq('id',customerId).eq('business_id',member.business_id).maybeSingle();
+ if(!customer)return {passed:false,error:'Choose a customer in your business.'};
+ const {data:created,error:insertError}=await supabase.from('customer_agreements').insert({
+  business_id:member.business_id,customer_id:customerId,created_by:user.id,
+  document_type:'service_contract',title:'TEST ONLY — Rollback safeguard verification',
+  body:'TEST ONLY — NOT A LEGAL AGREEMENT. This document tests signing-link revocation. No service, payment, or liability waiver is authorized.'
+ }).select('id').single();
+ if(insertError||!created)return {passed:false,error:'Could not create isolated test document: '+(insertError?.message||'Unknown error')};
+ const first=await prepareSigningLink(created.id);
+ if(!first.token)return {passed:false,error:'First test signing link could not be prepared: '+(first.error||'Unknown error')};
+ // Deliberately simulate a failure preparing the second agreement; do not touch a real second document.
+ const simulatedSecondFailure=true;
+ if(!simulatedSecondFailure)return {passed:false,error:'Failure injection did not run.'};
+ const {data:reset,error:resetError}=await supabase.from('customer_agreements').update({
+  status:'draft',signing_token_hash:null,signing_expires_at:null,
+  contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,
+  contractor_authorized_by:null,contractor_signature_image_data:null
+ }).eq('id',created.id).eq('business_id',member.business_id).eq('status','sent').select('id,status,signing_token_hash,signing_expires_at').maybeSingle();
+ if(resetError||!reset)return {passed:false,error:'Rollback failed or did not update a row: '+(resetError?.message||'No matching row'),testAgreementId:created.id};
+ const {data:readBack,error:readError}=await supabase.from('customer_agreements').select('status,signing_token_hash,signing_expires_at').eq('id',created.id).eq('business_id',member.business_id).single();
+ const {data:publicRead,error:publicError}=await supabase.rpc('read_agreement_for_signing',{p_token:first.token});
+ const accessible=Array.isArray(publicRead)&&publicRead.length>0;
+ const revoked=!readError&&readBack?.status==='draft'&&readBack.signing_token_hash===null&&readBack.signing_expires_at===null;
+ const passed=revoked&&!accessible&&!publicError;
+ return {passed,firstPrepared:true,secondFailedIntentionally:true,revoked,oldLinkRejected:!accessible&&!publicError,
+  testAgreementId:created.id,error:passed?undefined:'Verification failed: '+(readError?.message||publicError?.message||'Link or status not revoked')};
+}
