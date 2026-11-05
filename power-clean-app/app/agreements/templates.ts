@@ -27,7 +27,7 @@ SCHEDULE 1 — SERVICE PARTICULARS
 
 Property (service address): [PROPERTY ADDRESS]
 Customer telephone / email: [CUSTOMER PHONE] / [CUSTOMER EMAIL]
-Contractor telephone / email: [CONTRACTOR PHONE] / [CONTRACTOR EMAIL]
+Contractor telephone / email: (352) 665-4527 / pwr.wash.clean2026@gmail.com
 Estimate number / date: [ESTIMATE NUMBER OR ATTACHMENT] / [ESTIMATE DATE]
 Scheduled service date or window: [DATE / WINDOW]
 Contract Price: [AMOUNT] plus applicable Florida sales tax, if any, as stated in the Estimate
