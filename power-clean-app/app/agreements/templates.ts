@@ -203,7 +203,7 @@ the purpose of documenting conditions before and after the Services.
 
 11.2 Contractor shall not use any photograph depicting the street address, any person, any vehicle
 license plate, or any other identifying feature of the Property in advertising or promotional materials
-without Customer’s consent. Customer hereby: [PHOTO CONSENT] (select: consents / does not consent).
+without Customer’s consent. Customer hereby: [PHOTO CONSENT].
 
 ARTICLE 12. GENERAL PROVISIONS
 12.1 Independent Contractor. Contractor is an independent contractor. It shall be solely responsible
