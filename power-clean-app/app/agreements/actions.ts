@@ -19,7 +19,7 @@ export async function createAgreement(customerId:string,documentType:string,titl
  const replacements:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[NAME]':customer.name,'[DATE]':today,'[REFERENCE]':estimate?.id||'','[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[DATE / WINDOW]':serviceDate,'[OWNER NAME]':'Stacston Carter'};
  let personalized=body.trim().replaceAll('Power Clean representative: [NAME]','Power Clean representative: Stacston Carter');
  for(const [placeholder,value] of Object.entries(replacements)){if(value)personalized=personalized.replaceAll(placeholder,value);}
- if(!/^TEST ONLY\\b/i.test(title.trim())&&!/^TEST ONLY\\b/i.test(personalized)&&(!address||/\\[(?:CUSTOMER FULL NAME|PROPERTY ADDRESS|NAME|DATE)\\]/.test(personalized)))return {error:'Customer name, service address, or required details are missing. Complete the customer profile and placeholders first.'};
+ if(!/^TEST ONLY\b/i.test(title.trim())&&!/^TEST ONLY\b/i.test(personalized)&&(!address||/\[(?:CUSTOMER FULL NAME|PROPERTY ADDRESS|NAME|DATE)\]/.test(personalized)))return {error:'Customer name, service address, or required details are missing. Complete the customer profile and placeholders first.'};
  const {error}=await supabase.from('customer_agreements').insert({business_id:member.business_id,customer_id:customer.id,created_by:user.id,document_type:documentType,title:title.trim(),body:personalized});
  if(error)return {error:'Unable to save agreement.'};
  revalidatePath('/agreements');

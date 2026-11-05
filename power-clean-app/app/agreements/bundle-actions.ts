@@ -12,7 +12,7 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  if(testMode){
   const testBody='TEST ONLY — NOT A LEGAL AGREEMENT OR LIABILITY RELEASE. This document solely tests the Power Clean electronic signing workflow. No cleaning services are ordered, no payment is due, and no liability is waived.';
   const ids:string[]=[];
-  for(const [type,title] of [['service_contract','TEST ONLY — Power Clean Service Agreement'],['liability_release','TEST ONLY — Power Clean Property Condition & Liability Acknowledgment']] as const){
+  for(const [type,title] of [['service_contract','TEST ONLY — Power Clean Service Agreement'],['liability_release','TEST ONLY — Power Clean Property Condition Disclosure and Acknowledgment of Risk']] as const){
    const {data:created,error:insertError}=await supabase.from('customer_agreements').insert({business_id:member.business_id,customer_id:customerId,created_by:user.id,document_type:type,title,body:testBody}).select('id').single();
    if(insertError||!created)return {error:'Could not create test agreement: '+(insertError?.message||'Unknown error')};
    ids.push(created.id);
@@ -35,7 +35,7 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
    created.push('Service Agreement');
   }
   if(!liability){
-   const result=await createAgreement(customerId,'liability_release','Power Clean Property Condition & Liability Acknowledgment',LIABILITY_TEMPLATE);
+   const result=await createAgreement(customerId,'liability_release','Power Clean Property Condition Disclosure and Acknowledgment of Risk',LIABILITY_TEMPLATE);
    if(result.error)return {error:'Could not create Liability Acknowledgment: '+result.error};
    created.push('Liability Acknowledgment');
   }

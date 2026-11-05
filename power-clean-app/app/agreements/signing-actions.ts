@@ -35,7 +35,7 @@ export async function prepareSigningLink(id:string,reissue=false){
   if(preparedBody.includes('[AMOUNT]'))missing.push('an accepted estimate with priced items');
   if(preparedBody.includes('[ESTIMATE NUMBER OR ATTACHMENT]')||preparedBody.includes('[REFERENCE]'))missing.push('an accepted estimate');
   if(preparedBody.includes('[DATE / WINDOW]'))missing.push('a scheduled service date');
-  if(/\\[[A-Z][A-Z /-]+\\]/.test(preparedBody)&&!missing.length)missing.push('required customer or service details');
+  if(/\[[A-Z][A-Z0-9 /-]+\]/.test(preparedBody)&&!missing.length)missing.push('required customer or service details');
   if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
  }
  const token=randomBytes(32).toString('hex');
