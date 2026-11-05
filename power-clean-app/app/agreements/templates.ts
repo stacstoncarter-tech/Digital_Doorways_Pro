@@ -5,9 +5,9 @@ Power Clean · State of Florida
 
 THIS PRESSURE AND SOFT WASHING SERVICES AGREEMENT (this “Agreement”) is made
 and entered into as of [DATE] (the “Effective Date”), by and between
-[CONTRACTOR LEGAL NAME], a [ENTITY TYPE] organized under the
+Power Clean Solutions LLC, a limited liability company organized under the
 laws of the State of Florida, doing business as Power Clean, having its principal place of business at
-[CONTRACTOR ADDRESS] (“Contractor”), and
+4000 SW 47th St, Lot L10, Gainesville, FL 32608 (“Contractor”), and
 [CUSTOMER FULL NAME], an individual (“Customer”). Contractor and Customer are
 sometimes referred to herein individually as a “Party” and collectively as the “Parties.”
 
@@ -31,8 +31,8 @@ Contractor telephone / email: [CONTRACTOR PHONE] / [CONTRACTOR EMAIL]
 Estimate number / date: [ESTIMATE NUMBER OR ATTACHMENT] / [ESTIMATE DATE]
 Scheduled service date or window: [DATE / WINDOW]
 Contract Price: [AMOUNT] plus applicable Florida sales tax, if any, as stated in the Estimate
-Deposit (if any): [DEPOSIT]
-Accepted payment methods: [PAYMENT METHODS]
+Deposit (if any): None for standard residential jobs; a deposit applies only if expressly stated in the accepted Estimate.
+Accepted payment methods: Cash, credit/debit card, or an approved electronic transfer.
 
 ARTICLE 1. DEFINITIONS
 1.1 “Estimate” means the written estimate, proposal, or scope of work identified in Schedule 1 and
@@ -194,8 +194,8 @@ including rights under the Florida Deceptive and Unfair Trade Practices Act, Par
 Florida Statutes.
 
 ARTICLE 10. INSURANCE
-10.1 Contractor represents that it maintains commercial general liability insurance issued by [INSURANCE CARRIER] with limits of not less than [INSURANCE LIMIT] per occurrence.
-Contractor shall furnish a certificate of insurance upon request.
+10.1 Insurance coverage is not represented as active by this Agreement. Contractor shall disclose its actual insurance status and any applicable carrier and policy limits to Customer before Services begin. Contractor shall not claim to be insured unless coverage is in force.
+If active coverage exists, Contractor shall furnish an accurate certificate of insurance upon request.
 
 ARTICLE 11. PHOTOGRAPHS
 11.1 Contractor may photograph the areas of the Property in which the Services are performed, for
@@ -262,7 +262,7 @@ you sign this agreement. If you cancel this agreement, the seller may not keep a
 cash down payment.
 
 CUSTOMER CONTRACTOR
-[CONTRACTOR LEGAL NAME], d/b/a Power Clean
+Power Clean Solutions LLC, d/b/a Power Clean
 
 Signature By (Signature)
 
@@ -297,7 +297,7 @@ the seller and fail to do so, then you remain liable for performance of all obli
 contract.
 
 To cancel this transaction, mail or deliver a signed and dated copy of this cancellation notice or any
-other written notice, or send a telegram, to [CONTRACTOR LEGAL NAME], d/b/a Power Clean, at [CONTRACTOR ADDRESS], NOT LATER THAN MIDNIGHT OF [CANCELLATION DEADLINE].
+other written notice, or send a telegram, to Power Clean Solutions LLC, d/b/a Power Clean, at 4000 SW 47th St, Lot L10, Gainesville, FL 32608, NOT LATER THAN MIDNIGHT OF [CANCELLATION DEADLINE].
 
 I HEREBY CANCEL THIS TRANSACTION.
 
@@ -309,7 +309,7 @@ Power Clean · State of Florida
 
 THIS PROPERTY CONDITION DISCLOSURE AND ACKNOWLEDGMENT OF RISK (this
 “Acknowledgment”) is made and entered into as of [DATE] by and between
-[CONTRACTOR LEGAL NAME], doing business as Power Clean (“Contractor”), and
+Power Clean Solutions LLC, doing business as Power Clean (“Contractor”), and
 [CUSTOMER FULL NAME] (“Customer”). The Acknowledgment concerns the real
 property located at [PROPERTY ADDRESS], Florida (the “Property”),
 and the services described in Estimate No. [REFERENCE] (the “Services”).
@@ -413,7 +413,7 @@ IN WITNESS WHEREOF, the Parties have executed this Acknowledgment as of the date
 above.
 
 CUSTOMER CONTRACTOR
-[CONTRACTOR LEGAL NAME], d/b/a Power Clean
+Power Clean Solutions LLC, d/b/a Power Clean
 
 Signature By (Signature)
 
