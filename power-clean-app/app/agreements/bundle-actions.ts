@@ -21,8 +21,8 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
   if(!first.token)return {error:'Test Service Agreement: '+(first.error||'Signing link failed')};
   const second=await prepareSigningLink(ids[1]);
   if(!second.token){
-   const {error:resetError}=await supabase.from('customer_agreements').update({status:'draft',signing_token_hash:null,signing_expires_at:null,contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,contractor_authorized_by:null,contractor_signature_image_data:null}).eq('id',ids[0]).eq('business_id',member.business_id).eq('status','sent');
-   return {error:resetError?'Test bundle failed and the first link could not be reset: '+resetError.message:'Test bundle failed; first link revoked: '+(second.error||'Signing link failed')};
+   const {data:resetRow,error:resetError}=await supabase.from('customer_agreements').update({status:'draft',signing_token_hash:null,signing_expires_at:null,contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,contractor_authorized_by:null,contractor_signature_image_data:null}).eq('id',ids[0]).eq('business_id',member.business_id).eq('status','sent').select('id').maybeSingle();
+   return {error:resetError||!resetRow?'Test bundle failed and the first link reset could not be verified. Do not share links: '+(resetError?.message||'No row was reset'):'Test bundle failed; first link revoked: '+(second.error||'Signing link failed')};
   }
   return {serviceToken:first.token,liabilityToken:second.token};
  }
@@ -52,12 +52,12 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  const second=await prepareSigningLink(liability.id);
  if(!second.token){
   // Never expose a partially prepared bundle: revoke the first token before returning.
-  const {error:rollbackError}=await supabase.from('customer_agreements').update({
+  const {data:rollbackRow,error:rollbackError}=await supabase.from('customer_agreements').update({
    status:'draft',signing_token_hash:null,signing_expires_at:null,
    contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,
    contractor_authorized_by:null,contractor_signature_image_data:null
-  }).eq('id',service.id).eq('business_id',member.business_id).eq('status','sent');
-  if(rollbackError)return {error:'The second agreement failed and the first could not be reset. Do not share any links. Contact the administrator: '+rollbackError.message};
+  }).eq('id',service.id).eq('business_id',member.business_id).eq('status','sent').select('id').maybeSingle();
+  if(rollbackError||!rollbackRow)return {error:'The second agreement failed and the first reset could not be verified. Do not share any links. Contact the administrator: '+(rollbackError?.message||'No row was reset')};
   return {error:'Neither agreement link was issued. The second document failed validation: '+(second.error||'Could not prepare signing link.')};
  }
  return {serviceToken:first.token,liabilityToken:second.token};
