@@ -25,7 +25,9 @@ export async function prepareSigningLink(id:string,reissue=false){
  const today=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date());
  const date=job?.scheduled_start?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date(job.scheduled_start)):'';
  const estimateDate=estimate?.created_at?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date(estimate.created_at)):'';
- const values:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[DATE]':today,'[DATE / WINDOW]':date,'[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[REFERENCE]':estimate?.id||'','[OWNER NAME]':authorization.signer_name,'[AMOUNT]':amount,'[CONTRACTOR PHONE]':'(352) 665-4527','[CONTRACTOR EMAIL]':'pwr.wash.clean2026@gmail.com','[ESTIMATE DATE]':estimateDate,'[TRANSACTION DATE]':today};
+ const {data:photoFiles}=await supabase.storage.from('power-clean-customer-photos').list(member.business_id+'/'+agreement.customer_id,{limit:100});
+ const photoCount=(photoFiles||[]).filter(p=>/\\.(jpg|jpeg|png|webp|heic|heif)$/i.test(p.name)).length;
+ const values:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[DATE]':today,'[DATE / WINDOW]':date,'[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[REFERENCE]':estimate?.id||'','[OWNER NAME]':authorization.signer_name,'[AMOUNT]':amount,'[CONTRACTOR PHONE]':'(352) 665-4527','[CONTRACTOR EMAIL]':'pwr.wash.clean2026@gmail.com','[ESTIMATE DATE]':estimateDate,'[TRANSACTION DATE]':today,'[PHOTO COUNT]':String(photoCount)};
  let preparedBody=agreement.body.replaceAll('Power Clean representative: [NAME]','Power Clean representative: '+authorization.signer_name);
  for(const [key,value] of Object.entries(values))if(value)preparedBody=preparedBody.replaceAll(key,value);
  if(customer.name)preparedBody=preparedBody.replaceAll('[NAME]',customer.name);
@@ -36,6 +38,8 @@ export async function prepareSigningLink(id:string,reissue=false){
   if(preparedBody.includes('[AMOUNT]'))missing.push('an accepted estimate with priced items');
   if(preparedBody.includes('[ESTIMATE NUMBER OR ATTACHMENT]')||preparedBody.includes('[REFERENCE]'))missing.push('an accepted estimate');
   if(preparedBody.includes('[DATE / WINDOW]'))missing.push('a scheduled service date');
+  if(agreement.document_type==='service_contract'&&preparedBody.includes('[CANCELLATION DEADLINE]'))missing.push('a legally reviewed cancellation deadline for this transaction');
+  if(agreement.document_type==='liability_release'&&/\\[(AREA [1-6]|CONDITION [1-6]|PHOTOGRAPHED [1-6]|NO KNOWN CONDITIONS|ATTACHMENTS|PAGE COUNT)\\]/.test(preparedBody))missing.push('the actual property-condition inspection and disclosure fields (do not invent or assume no defects)');
   const unresolved=[...new Set(preparedBody.match(/\[[A-Z][A-Z0-9 /-]+\]/g)||[])].filter(field=>!(agreement.document_type==='service_contract'&&field==='[PHOTO CONSENT]'));
   if(unresolved.length)missing.push('unfilled contract fields: '+unresolved.join(', '));
   if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
