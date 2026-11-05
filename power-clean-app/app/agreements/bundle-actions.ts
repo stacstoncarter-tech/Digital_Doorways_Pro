@@ -47,6 +47,15 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  const first=await prepareSigningLink(service.id);
  if(!first.token)return {error:'Service Agreement: '+(first.error||'Could not prepare signing link.')};
  const second=await prepareSigningLink(liability.id);
- if(!second.token)return {error:'Service Agreement prepared, but liability acknowledgment failed: '+(second.error||'Could not prepare signing link.')+'. Return to agreements to prepare the second document.'};
+ if(!second.token){
+  // Never expose a partially prepared bundle: revoke the first token before returning.
+  const {error:rollbackError}=await supabase.from('customer_agreements').update({
+   status:'draft',signing_token_hash:null,signing_expires_at:null,
+   contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,
+   contractor_authorized_by:null,contractor_signature_image_data:null
+  }).eq('id',service.id).eq('business_id',member.business_id).eq('status','sent');
+  if(rollbackError)return {error:'The second agreement failed and the first could not be reset. Do not share any links. Contact the administrator: '+rollbackError.message};
+  return {error:'Neither agreement link was issued. The second document failed validation: '+(second.error||'Could not prepare signing link.')};
+ }
  return {serviceToken:first.token,liabilityToken:second.token};
 }
