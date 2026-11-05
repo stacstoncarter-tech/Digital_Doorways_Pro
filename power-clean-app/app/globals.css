@@ -18,3 +18,17 @@
 @media(max-width:560px){.workspace{padding:20px 15px}.workspace-header h1{font-size:27px}.workspace .customer{align-items:flex-start}.workspace .contact{display:block;overflow-wrap:anywhere;font-size:11px}}
 
 @media print{.print-hide{display:none!important}.workspace{max-width:none;padding:0;min-height:auto}.workspace .panel{box-shadow:none;border:0;padding:0}body{background:white;color:black}p{break-inside:avoid}}
+
+/* Signed contract PDF print layout: avoid clipped text, signature blocks and page breaks. */
+@page{size:letter;margin:0.7in}
+@media print{
+ .workspace-header,.print-hide,.sidebar,.topbar,.footer{display:none!important}
+ .workspace,.main{max-width:none!important;width:100%!important;margin:0!important;padding:0!important}
+ .workspace .panel{border:0!important;box-shadow:none!important;margin:0!important;padding:0!important}
+ .workspace .panel h1{font-size:19pt;line-height:1.2;page-break-after:avoid}
+ .workspace .panel h2{font-size:12pt;page-break-after:avoid}
+ .workspace .panel div[style*="pre-wrap"]{white-space:pre-wrap!important;overflow-wrap:anywhere;font-size:9.5pt;line-height:1.5!important}
+ .workspace .panel img{max-width:3in!important;height:auto!important;break-inside:avoid}
+ .workspace .panel section{break-inside:avoid;page-break-inside:avoid}
+ a{color:inherit;text-decoration:none}
+}
