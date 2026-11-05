@@ -26,7 +26,7 @@ export async function prepareSigningLink(id:string,reissue=false){
  const date=job?.scheduled_start?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date(job.scheduled_start)):'';
  const estimateDate=estimate?.created_at?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date(estimate.created_at)):'';
  const {data:photoFiles}=await supabase.storage.from('power-clean-customer-photos').list(member.business_id+'/'+agreement.customer_id,{limit:100});
- const photoCount=(photoFiles||[]).filter(p=>/\\.(jpg|jpeg|png|webp|heic|heif)$/i.test(p.name)).length;
+ const photoCount=(photoFiles||[]).filter(p=>['jpg','jpeg','png','webp','heic','heif'].includes((p.name.split('.').pop()||'').toLowerCase())).length;
  const values:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[DATE]':today,'[DATE / WINDOW]':date,'[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[REFERENCE]':estimate?.id||'','[OWNER NAME]':authorization.signer_name,'[AMOUNT]':amount,'[CONTRACTOR PHONE]':'(352) 665-4527','[CONTRACTOR EMAIL]':'pwr.wash.clean2026@gmail.com','[ESTIMATE DATE]':estimateDate,'[TRANSACTION DATE]':today,'[PHOTO COUNT]':String(photoCount)};
  let preparedBody=agreement.body.replaceAll('Power Clean representative: [NAME]','Power Clean representative: '+authorization.signer_name);
  for(const [key,value] of Object.entries(values))if(value)preparedBody=preparedBody.replaceAll(key,value);
