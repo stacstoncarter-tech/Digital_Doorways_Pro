@@ -17,14 +17,15 @@ export async function prepareSigningLink(id:string,reissue=false){
  if(!customer)return {error:'Customer information is missing.'};
  const {data:addressRow}=await supabase.from('customer_addresses').select('address').eq('customer_id',agreement.customer_id).eq('business_id',member.business_id).eq('is_primary',true).limit(1).maybeSingle();
  const address=addressRow?.address||customer.service_address||'';
- const {data:estimate}=await supabase.from('estimates').select('id').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).in('status',['accepted','approved']).order('created_at',{ascending:false}).limit(1).maybeSingle();
+ const {data:estimate}=await supabase.from('estimates').select('id,created_at').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).in('status',['accepted','approved']).order('created_at',{ascending:false}).limit(1).maybeSingle();
  const {data:items}=estimate?await supabase.from('estimate_items').select('pricing_mode,square_feet,rate,fixed_price').eq('estimate_id',estimate.id):{data:null};
  const total=items?.reduce((sum,item)=>sum+(item.pricing_mode==='fixed'?Number(item.fixed_price||0):Number(item.square_feet||0)*Number(item.rate||0)),0);
  const amount=items?.length?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(total||0):'';
  const {data:job}=await supabase.from('jobs').select('scheduled_start').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).order('created_at',{ascending:false}).limit(1).maybeSingle();
  const today=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date());
  const date=job?.scheduled_start?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date(job.scheduled_start)):'';
- const values:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[DATE]':today,'[DATE / WINDOW]':date,'[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[REFERENCE]':estimate?.id||'','[OWNER NAME]':authorization.signer_name,'[AMOUNT]':amount};
+ const estimateDate=estimate?.created_at?new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date(estimate.created_at)):'';
+ const values:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[DATE]':today,'[DATE / WINDOW]':date,'[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[REFERENCE]':estimate?.id||'','[OWNER NAME]':authorization.signer_name,'[AMOUNT]':amount,'[CONTRACTOR PHONE]':'(352) 665-4527','[CONTRACTOR EMAIL]':'pwr.wash.clean2026@gmail.com','[ESTIMATE DATE]':estimateDate,'[TRANSACTION DATE]':today};
  let preparedBody=agreement.body.replaceAll('Power Clean representative: [NAME]','Power Clean representative: '+authorization.signer_name);
  for(const [key,value] of Object.entries(values))if(value)preparedBody=preparedBody.replaceAll(key,value);
  if(customer.name)preparedBody=preparedBody.replaceAll('[NAME]',customer.name);
