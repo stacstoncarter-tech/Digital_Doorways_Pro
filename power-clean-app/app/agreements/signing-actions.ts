@@ -39,7 +39,7 @@ export async function prepareSigningLink(id:string,reissue=false){
   if(preparedBody.includes('[ESTIMATE NUMBER OR ATTACHMENT]')||preparedBody.includes('[REFERENCE]'))missing.push('an accepted estimate');
   if(preparedBody.includes('[DATE / WINDOW]'))missing.push('a scheduled service date');
   if(agreement.document_type==='service_contract'&&preparedBody.includes('[CANCELLATION DEADLINE]'))missing.push('a legally reviewed cancellation deadline for this transaction');
-  if(agreement.document_type==='liability_release'&&/\\[(AREA [1-6]|CONDITION [1-6]|PHOTOGRAPHED [1-6]|NO KNOWN CONDITIONS|ATTACHMENTS|PAGE COUNT)\\]/.test(preparedBody))missing.push('the actual property-condition inspection and disclosure fields (do not invent or assume no defects)');
+  if(agreement.document_type==='liability_release'&&['[AREA 1]','[CONDITION 1]','[PHOTOGRAPHED 1]','[NO KNOWN CONDITIONS]','[ATTACHMENTS]','[PAGE COUNT]'].some(field=>preparedBody.includes(field)))missing.push('actual property-condition inspection and disclosure fields');
   const unresolved=[...new Set(preparedBody.match(/\[[A-Z][A-Z0-9 /-]+\]/g)||[])].filter(field=>!(agreement.document_type==='service_contract'&&field==='[PHOTO CONSENT]'));
   if(unresolved.length)missing.push('unfilled contract fields: '+unresolved.join(', '));
   if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
