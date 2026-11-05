@@ -20,7 +20,10 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
   const first=await prepareSigningLink(ids[0]);
   if(!first.token)return {error:'Test Service Agreement: '+(first.error||'Signing link failed')};
   const second=await prepareSigningLink(ids[1]);
-  if(!second.token)return {error:'Test Liability Acknowledgment: '+(second.error||'Signing link failed')};
+  if(!second.token){
+   const {error:resetError}=await supabase.from('customer_agreements').update({status:'draft',signing_token_hash:null,signing_expires_at:null,contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,contractor_authorized_by:null,contractor_signature_image_data:null}).eq('id',ids[0]).eq('business_id',member.business_id).eq('status','sent');
+   return {error:resetError?'Test bundle failed and the first link could not be reset: '+resetError.message:'Test bundle failed; first link revoked: '+(second.error||'Signing link failed')};
+  }
   return {serviceToken:first.token,liabilityToken:second.token};
  }
  const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title,body').eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
@@ -28,7 +31,7 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  const matchesMaster=(body:string,template:string)=>body.startsWith(template.slice(0,75));
  const service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
  const liability=docs?.find(d=>d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE));
- const olderDrafts=(docs||[]).filter(d=>!((d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE))||(d.document_type==='liability_release'&&d.body===LIABILITY_TEMPLATE)));
+ const olderDrafts=(docs||[]).filter(d=>!((d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE))||(d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE))));
  if(olderDrafts.length)return {error:'Older or customized agreement drafts exist for this customer. Review or void them before preparing the current master templates. No signing links were issued.'};
  if(!service||!liability){
   const created:string[]=[];
