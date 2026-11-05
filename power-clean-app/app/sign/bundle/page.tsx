@@ -12,7 +12,7 @@ export default async function BundlePage({searchParams}:{searchParams:Promise<{s
  const docA=Array.isArray(a.data)?a.data[0]:null;
  const docB=Array.isArray(b.data)?b.data[0]:null;
  return <main className="workspace"><header className="workspace-header"><div><img src={POWER_CLEAN_LOGO} alt="Power Clean" style={{maxWidth:280,width:'100%',height:'auto'}}/><h1>Power Clean — Your two agreements</h1><p>Review and sign each document individually. You may return to this page between signatures.</p></div></header>
- <section className="panel"><h2>1. Service Agreement</h2><p>{docA?'Ready for your review and signature.':'Already signed or link expired.'}</p>{docA&&<Link href={'/sign/'+service}>Review and sign Service Agreement</Link>}</section>
- <section className="panel"><h2>2. Property Condition & Liability Acknowledgment</h2><p>{docB?'Ready for your review and signature.':'Already signed or link expired.'}</p>{docB&&<Link href={'/sign/'+liability}>Review and sign Liability Acknowledgment</Link>}</section>
+ <section className="panel"><h2>1. Service Agreement</h2><p>{docA?'Ready for your review and signature.':'Already signed or link expired.'}</p>{docA&&<Link href={'/sign/'+service+'?next='+liability}>Start signing — Service Agreement</Link>}</section>
+ <section className="panel"><h2>2. Property Condition & Liability Acknowledgment</h2><p>{docB?'Ready for your review and signature.':'Already signed or link expired.'}</p>{docB&&<Link href={'/sign/'+liability+'?next='+service}>Review and sign Property Acknowledgment</Link>}</section>
  <p>Both signatures are required to complete your paperwork. If either link has expired, contact Power Clean for a new signing link.</p></main>;
 }
