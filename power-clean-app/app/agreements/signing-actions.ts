@@ -2,7 +2,7 @@
 import {randomBytes,createHash} from 'node:crypto';
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
-export async function prepareSigningLink(id:string,reissue=false,cancellationDeadline?:string){
+export async function prepareSigningLink(id:string,reissue=false,cancellationDeadline?:string,dryRun=false){
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  if(!user)return {error:'Sign in again.'};
@@ -46,6 +46,7 @@ export async function prepareSigningLink(id:string,reissue=false,cancellationDea
   if(unresolved.length)missing.push('unfilled contract fields: '+unresolved.join(', '));
   if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
  }
+ if(dryRun)return {ready:true};
  const token=randomBytes(32).toString('hex');
  const hash=createHash('sha256').update(token).digest('hex');
  const expires=new Date(Date.now()+7*24*60*60*1000).toISOString();
