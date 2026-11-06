@@ -44,7 +44,7 @@ export async function prepareSigningLink(id:string,reissue=false,cancellationDea
   // Empty inspection slots are optional. Never invent an inspection finding or photograph.
   // Keep any actual, already populated disclosures intact.
   if(agreement.document_type==='liability_release'){
-   preparedBody=preparedBody.replace(/\\[(?:AREA|CONDITION|PHOTOGRAPHED) [1-6]\\]/g,'Not provided');
+   preparedBody=preparedBody.replace(/\[(?:AREA|CONDITION|PHOTOGRAPHED) [1-6]\]/g,'Not provided');
    preparedBody=preparedBody.replaceAll('[NO KNOWN CONDITIONS]','Not specified');
    preparedBody=preparedBody.replaceAll('[ATTACHMENTS]','None listed');
    preparedBody=preparedBody.replaceAll('[PAGE COUNT]','See signed document');
