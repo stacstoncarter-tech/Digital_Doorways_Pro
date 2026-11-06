@@ -38,7 +38,12 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
   const {data:docs,error:docError}=await ctx.supabase.from('customer_agreements').select('document_type,status,title,body').eq('business_id',ctx.member.business_id).eq('customer_id',job.customer_id).in('document_type',['service_contract','liability_release']).eq('status','signed');
   if(docError)return {error:'Unable to verify signed documents. Try again.',success:''};
   const types=new Set((docs||[]).filter(d=>!/^TEST ONLY\b/i.test(d.title.trim())&&!/\bDraft\b/i.test(d.title)&&!/^TEST ONLY\b/i.test(d.body.trim())&&!/DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE/i.test(d.body)).map(d=>d.document_type));
-  if(!types.has('service_contract')||!types.has('liability_release'))return {error:'A signed service contract and liability release are required before scheduling or starting work.',success:''};
+  if(!types.has('service_contract')||!types.has('liability_release')){
+   const missing=[!types.has('service_contract')?'Service Agreement':null,!types.has('liability_release')?'Property Condition & Liability Acknowledgment':null].filter(Boolean).join(' and ');
+   const signed=(docs||[]).filter(d=>d.status==='signed');
+   const excluded=signed.filter(d=>/^TEST ONLY\b/i.test(d.title.trim())||/\bDraft\b/i.test(d.title)||/^TEST ONLY\b/i.test(d.body.trim())||/DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE/i.test(d.body));
+   return {error:excluded.length?'Scheduling blocked: signed test-only or draft agreements cannot authorize real work. Prepare and sign the approved final agreements for this customer. Missing eligible document(s): '+missing+'.':'Scheduling blocked: no eligible signed '+missing+' found for this job’s customer. Open Agreements for this customer, verify both final documents are signed, then retry.',success:''};
+  }
  }
  const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update job.',success:''};
