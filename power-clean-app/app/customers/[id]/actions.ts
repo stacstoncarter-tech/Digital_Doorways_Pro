@@ -21,7 +21,8 @@ export async function addAddress(_state:CustomerActionState,form:FormData):Promi
  if(!/^[0-9a-f-]{36}$/i.test(customerId)||!label||label.length>80||!address||address.length>240)return {error:'Enter a valid label and service address.',success:''};
  const ctx=await access(customerId);
  if(!ctx||!['owner','admin','staff'].includes(ctx.member.role))return {error:'Access denied.',success:''};
- const {error}=await ctx.supabase.from('customer_addresses').insert({business_id:ctx.member.business_id,customer_id:customerId,label,address});
+ const {count}=await ctx.supabase.from('customer_addresses').select('id',{count:'exact',head:true}).eq('customer_id',customerId).eq('business_id',ctx.member.business_id);
+ const {error}=await ctx.supabase.from('customer_addresses').insert({business_id:ctx.member.business_id,customer_id:customerId,label,address,is_primary:(count||0)===0});
  if(error)return {error:'Could not save service address.',success:''};
  revalidatePath('/customers/'+customerId);
  return {error:'',success:'Service address added.'};
@@ -51,11 +52,12 @@ export async function updateCustomer(_state:CustomerActionState,form:FormData):P
 }
 export async function updateAddress(_state:CustomerActionState,form:FormData):Promise<CustomerActionState>{
  const customerId=String(form.get('customerId')||''),addressId=String(form.get('addressId')||'');
- const label=String(form.get('label')||'').trim(),address=String(form.get('address')||'').trim();
+ const label=String(form.get('label')||'').trim(),address=String(form.get('address')||'').trim(),makePrimary=form.get('makePrimary')==='on';
  if(!/^[0-9a-f-]{36}$/i.test(customerId)||!/^[0-9a-f-]{36}$/i.test(addressId)||!label||label.length>80||!address||address.length>240)return {error:'Check the property label and address.',success:''};
  const ctx=await access(customerId);
  if(!ctx||!['owner','admin','staff'].includes(ctx.member.role))return {error:'Access denied.',success:''};
- const {data,error}=await ctx.supabase.from('customer_addresses').update({label,address}).eq('id',addressId).eq('customer_id',customerId).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
+ if(makePrimary){const {error:clearError}=await ctx.supabase.from('customer_addresses').update({is_primary:false}).eq('customer_id',customerId).eq('business_id',ctx.member.business_id);if(clearError)return {error:'Could not update primary property: '+clearError.message,success:''};}
+ const {data,error}=await ctx.supabase.from('customer_addresses').update({label,address,...(makePrimary?{is_primary:true}:{})}).eq('id',addressId).eq('customer_id',customerId).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
  if(error||!data)return {error:'Could not update property.',success:''};
  revalidatePath('/customers/'+customerId);
  return {error:'',success:'Property updated.'};
