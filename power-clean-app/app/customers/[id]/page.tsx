@@ -3,6 +3,7 @@ import {notFound,redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 import CustomerEditors from './customer-editors';
 import CustomerPhotos from './customer-photos';
+import DeleteCustomer from './delete-customer';
 import {CustomerProfileEditor,PropertyEditor} from './profile-editors';
 export default async function CustomerDetail({params}:{params:Promise<{id:string}>}){
  const {id}=await params;
@@ -37,5 +38,5 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  <section className="panel"><h2>Service properties</h2>{addressesResult.error?<p role="alert">Could not load properties.</p>:(addressesResult.data||[]).length?<ul>{(addressesResult.data||[]).map(a=><li key={a.id}><strong>{a.label}</strong>{a.is_primary?' (Original)':''} — {a.address}{['owner','admin','staff'].includes(member.role)&&<PropertyEditor customerId={id} property={a}/>}</li>)}</ul>:<p>No service properties saved yet.</p>}</section>
  <section className="panel"><h2>Customer notes</h2>{notesResult.error?<p role="alert">Could not load notes.</p>:(notesResult.data||[]).length?<ul>{(notesResult.data||[]).map(n=><li key={n.id}><small>{new Date(n.created_at).toLocaleString('en-US')}</small><p style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{n.body}</p></li>)}</ul>:<p>No notes yet.</p>}</section>
  <section className="panel"><h2>Customer timeline</h2><Link href={"/customers/"+id+"/timeline"}>View full history and log interactions</Link></section><section className="panel"><h2>Customer history</h2>{agreementsResult.error||estimatesResult.error?<p role="alert">Could not load complete customer history.</p>:history.length?<ul>{history.map(h=><li key={h.id}><Link href={h.href}>{h.title}</Link> — {h.status} — {new Date(h.date).toLocaleDateString('en-US')}</li>)}</ul>:<p>No agreements or estimates yet.</p>}</section>
- </main>;
+ {["owner","admin"].includes(member.role)&&<DeleteCustomer customerId={id} name={customer.name}/>}</main>;
 }
