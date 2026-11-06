@@ -2,7 +2,7 @@
 import {randomBytes,createHash} from 'node:crypto';
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
-export async function prepareSigningLink(id:string,reissue=false){
+export async function prepareSigningLink(id:string,reissue=false,cancellationDeadline?:string){
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  if(!user)return {error:'Sign in again.'};
@@ -28,7 +28,9 @@ export async function prepareSigningLink(id:string,reissue=false){
  const {data:photoFiles}=await supabase.storage.from('power-clean-customer-photos').list(member.business_id+'/'+agreement.customer_id,{limit:100});
  const photoCount=(photoFiles||[]).filter(p=>['jpg','jpeg','png','webp','heic','heif'].includes((p.name.split('.').pop()||'').toLowerCase())).length;
  const values:Record<string,string>={'[CUSTOMER FULL NAME]':customer.name,'[PROPERTY ADDRESS]':address,'[CUSTOMER EMAIL]':customer.email||'','[CUSTOMER PHONE]':customer.phone||'','[DATE]':today,'[DATE / WINDOW]':date,'[ESTIMATE NUMBER OR ATTACHMENT]':estimate?.id||'','[REFERENCE]':estimate?.id||'','[OWNER NAME]':authorization.signer_name,'[AMOUNT]':amount,'[CONTRACTOR PHONE]':'(352) 665-4527','[CONTRACTOR EMAIL]':'pwr.wash.clean2026@gmail.com','[ESTIMATE DATE]':estimateDate,'[TRANSACTION DATE]':today,'[PHOTO COUNT]':String(photoCount)};
+ if(cancellationDeadline){if(!/^\d{4}-\d{2}-\d{2}$/.test(cancellationDeadline)||!Number.isFinite(Date.parse(cancellationDeadline+'T12:00:00Z')))return {error:'Enter a valid cancellation deadline date.'};}
  let preparedBody=agreement.body.replaceAll('Power Clean representative: [NAME]','Power Clean representative: '+authorization.signer_name);
+ if(cancellationDeadline)preparedBody=preparedBody.replaceAll('[CANCELLATION DEADLINE]',new Intl.DateTimeFormat('en-US',{timeZone:'UTC',month:'long',day:'numeric',year:'numeric'}).format(new Date(cancellationDeadline+'T12:00:00Z')));
  for(const [key,value] of Object.entries(values))if(value)preparedBody=preparedBody.replaceAll(key,value);
  if(customer.name)preparedBody=preparedBody.replaceAll('[NAME]',customer.name);
  if(!agreement.title.toUpperCase().startsWith('TEST ONLY')&&!preparedBody.toUpperCase().startsWith('TEST ONLY')){
