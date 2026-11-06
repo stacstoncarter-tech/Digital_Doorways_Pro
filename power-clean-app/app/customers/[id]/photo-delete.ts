@@ -13,6 +13,9 @@ export async function deleteCustomerPhoto(customerId:string,path:string){
  if(!path.startsWith(prefix)||path.slice(prefix.length).includes('/')||!/^[-\w.]+\.(jpg|jpeg|png|webp|heic|heif)$/i.test(path.slice(prefix.length)))return {error:'Invalid photo path.'};
  const {data,error}=await supabase.storage.from('power-clean-customer-photos').remove([path]);
  if(error)return {error:'Photo could not be deleted: '+error.message};
- if(!data?.some(f=>f.name===path))return {error:'Photo deletion could not be confirmed.'};
+ const filename=path.slice(prefix.length);
+ const {data:remaining,error:verifyError}=await supabase.storage.from('power-clean-customer-photos').list(prefix.slice(0,-1),{limit:1000});
+ if(verifyError)return {error:'Deletion attempted, but verification failed: '+verifyError.message};
+ if((remaining||[]).some(f=>f.name===filename))return {error:'Photo is still in storage. Check Storage DELETE permissions for this user.'};
  revalidatePath('/customers/'+customerId+'/photos');return {success:true};
 }
