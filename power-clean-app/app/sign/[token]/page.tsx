@@ -2,7 +2,7 @@ import {createClient} from '@/lib/supabase/server';
 import SignatureForm from '../signature-form';
 import {POWER_CLEAN_LOGO} from '@/lib/branding';
 import type {Metadata} from 'next';
-export const metadata:Metadata={title:'Power Clean | Customer Agreements',description:'Review and electronically sign your Power Clean customer agreements.',openGraph:{title:'Power Clean | Customer Agreements',description:'Secure customer agreement signing for Power Clean.',type:'website',images:[{url:'https://power-clean-operations.vercel.app/og-image?v=2',width:110,height:112,alt:'Power Clean company emblem'}]},twitter:{card:'summary_large_image',title:'Power Clean | Customer Agreements',images:['https://power-clean-operations.vercel.app/og-image?v=2']},robots:{index:false,follow:false}};
+export const metadata:Metadata={title:'Power Clean | Customer Agreements',description:'Review and electronically sign your Power Clean customer agreements.',openGraph:{title:'Power Clean | Customer Agreements',description:'Secure customer agreement signing for Power Clean.',type:'website',images:[{url:'/og-image?v=3',width:110,height:112,alt:'Power Clean company emblem'}]},twitter:{card:'summary',title:'Power Clean | Customer Agreements',images:['/og-image?v=3']},robots:{index:false,follow:false}};
 export const dynamic='force-dynamic';
 export default async function SigningPage({params,searchParams}:{params:Promise<{token:string}>;searchParams:Promise<{next?:string;returnTo?:string}>}){
  const {token}=await params;
