@@ -10,7 +10,7 @@ export async function createAgreement(customerId:string,documentType:string,titl
  if(!member||!['owner','admin','staff'].includes(member.role))return {error:'Permission denied.'};
  const {data:customer}=await supabase.from('customers').select('id,name,email,phone,service_address').eq('id',customerId).eq('business_id',member.business_id).maybeSingle();
  if(!customer)return {error:'Choose a valid customer.'};
- const {data:primaryAddress}=await supabase.from('customer_addresses').select('address').eq('business_id',member.business_id).eq('customer_id',customer.id).eq('is_primary',true).limit(1).maybeSingle();
+ const {data:primaryAddress}=await supabase.from('customer_addresses').select('address').eq('business_id',member.business_id).eq('customer_id',customer.id).order('is_primary',{ascending:false}).order('created_at',{ascending:true}).limit(1).maybeSingle();
  const address=primaryAddress?.address||customer.service_address||'';
  const today=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'long',day:'numeric'}).format(new Date());
  const {data:estimate}=await supabase.from('estimates').select('id,notes,discount,tax_rate,status').eq('business_id',member.business_id).eq('customer_id',customer.id).in('status',['accepted','approved']).order('created_at',{ascending:false}).limit(1).maybeSingle();
