@@ -26,3 +26,21 @@ export async function uploadJobPhoto(_state:State,f:FormData):Promise<State>{
  if(error){await ctx.supabase.storage.from('power-clean-job-photos').remove([path]);return {error:'Could not save photo record.',success:''};}
  revalidatePath('/jobs/'+jobId);return {error:'',success:'Photo saved.'};
 }
+
+export async function deleteJobPhoto(jobId:string,photoId:string){
+ const ctx=await context(jobId);
+ if(!ctx||!/^[0-9a-f-]{36}$/i.test(photoId))return {error:'Access denied.'};
+ const {data:photo,error:lookupError}=await ctx.supabase.from('job_photos').select('id,storage_path').eq('id',photoId).eq('job_id',jobId).eq('business_id',ctx.member.business_id).maybeSingle();
+ if(lookupError||!photo)return {error:'Job photo not found.'};
+ const prefix=ctx.member.business_id+'/'+jobId+'/';
+ if(!photo.storage_path.startsWith(prefix)||photo.storage_path.slice(prefix.length).includes('/'))return {error:'Invalid photo storage path.'};
+ const {error:storageError}=await ctx.supabase.storage.from('power-clean-job-photos').remove([photo.storage_path]);
+ if(storageError)return {error:'Storage deletion failed: '+storageError.message};
+ const {data:remaining,error:verifyError}=await ctx.supabase.storage.from('power-clean-job-photos').list(prefix.slice(0,-1),{limit:1000});
+ if(verifyError)return {error:'Storage deletion could not be verified: '+verifyError.message};
+ if((remaining||[]).some(p=>p.name===photo.storage_path.slice(prefix.length)))return {error:'Photo still exists in storage; check DELETE permissions.'};
+ const {data:deleted,error:dbError}=await ctx.supabase.from('job_photos').delete().eq('id',photoId).eq('job_id',jobId).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
+ if(dbError||!deleted)return {error:'Image removed from storage, but database cleanup failed: '+(dbError?.message||'No matching record')};
+ revalidatePath('/jobs/'+jobId);
+ return {success:true};
+}
