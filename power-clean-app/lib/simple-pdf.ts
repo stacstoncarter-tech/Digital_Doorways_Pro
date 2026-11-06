@@ -10,7 +10,7 @@ export function textPdf(lines:string[]):Uint8Array{
   objects.push('<< /Length '+enc.encode(stream).length+' >>\nstream\n'+stream+'\nendstream');
  }
  objects[2]='<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+kids.length+' >>';
- let output='%PDF-1.4\n',offsets=[0];
+ let output='%PDF-1.4\n';const offsets=[0];
  for(let i=1;i<objects.length;i++){offsets.push(enc.encode(output).length);output+=i+' 0 obj\n'+objects[i]+'\nendobj\n';}
  const xref=enc.encode(output).length;output+='xref\n0 '+objects.length+'\n0000000000 65535 f \n';for(let i=1;i<objects.length;i++)output+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
  output+='trailer\n<< /Size '+objects.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
