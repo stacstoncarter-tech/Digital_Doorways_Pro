@@ -2,6 +2,7 @@ import Link from 'next/link';
 import {notFound,redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 import PrintButton from './print-button';
+import InvoiceShare from './invoice-share';
 import {POWER_CLEAN_LOGO} from '@/lib/branding';
 const money=(n:number)=>Number(n).toLocaleString('en-US',{style:'currency',currency:'USD'});
 export default async function InvoiceDetail({params}:{params:Promise<{id:string}>}){
@@ -20,5 +21,5 @@ export default async function InvoiceDetail({params}:{params:Promise<{id:string}
  <div style={{maxWidth:330,marginLeft:'auto',marginTop:25}}><p>Subtotal: {money(invoice.subtotal)}</p><p>Discount: {money(invoice.discount)}</p><p>Tax rate: {invoice.tax_rate}%</p><h2>Total: {money(invoice.total)}</h2><p>Payments recorded: {money(paid)}</p><h2>Balance due: {money(balance)}</h2></div>
  {invoice.notes&&<section><h3>Notes</h3><p style={{whiteSpace:'pre-wrap'}}>{invoice.notes}</p></section>}
  <footer style={{marginTop:40,borderTop:'1px solid #ddd',paddingTop:15}}><p>Thank you for choosing Power Clean.</p><small>Recorded payments are not proof of bank settlement. This document does not automatically collect payment.</small></footer>
- </article><style>{'@media print { .invoice-no-print {display:none!important} body {background:white!important} main.workspace {padding:0!important;max-width:none!important} article.panel {border:0!important;box-shadow:none!important;margin:0!important;max-width:none!important} }'}</style></main>;
+ </article><InvoiceShare number={invoice.invoice_number} email={customer?.email||''} total={Number(invoice.total)} balance={balance} test={invoice.notes?.startsWith('[TEST ONLY')||false}/><style>{'@media print { .invoice-no-print {display:none!important} body {background:white!important} main.workspace {padding:0!important;max-width:none!important} article.panel {border:0!important;box-shadow:none!important;margin:0!important;max-width:none!important} }'}</style></main>;
 }
