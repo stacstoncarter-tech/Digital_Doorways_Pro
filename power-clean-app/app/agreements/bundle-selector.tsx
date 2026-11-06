@@ -2,8 +2,8 @@
 import {useState} from 'react';
 import BundleButton from './bundle-button';
 type Customer={id:string;name:string;email?:string|null;phone?:string|null};
-export default function BundleSelector({customers}:{customers:Customer[]}){
- const [selected,setSelected]=useState('');
+export default function BundleSelector({customers,initialCustomerId=''}:{customers:Customer[];initialCustomerId?:string}){
+ const [selected,setSelected]=useState(initialCustomerId);
  const customer=customers.find(c=>c.id===selected);
  return <div style={{display:'grid',gap:12,maxWidth:650}}>
  <label htmlFor="bundle-customer">Customer for both agreements</label>
