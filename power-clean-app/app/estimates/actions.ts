@@ -10,7 +10,7 @@ export async function saveEstimate(payload:Payload):Promise<{error?:string;id?:s
  const {data:membership}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!membership||!['owner','admin','staff'].includes(membership.role)) return {error:'You cannot create estimates.'};
  const {data:customer}=await supabase.from('customers').select('id').eq('id',payload.customerId).eq('business_id',membership.business_id).maybeSingle();
- if(!customer) return {error:'Select a valid customer.'};
+ if(!customer) return {error:'Customer record could not be found for your business. Reopen Customers and select the saved customer.'};
  let serviceAddressId:string|null=null;
  if(payload.serviceAddressId){
   const {data:property}=await supabase.from('customer_addresses').select('id').eq('id',payload.serviceAddressId).eq('customer_id',customer.id).eq('business_id',membership.business_id).maybeSingle();
@@ -28,9 +28,9 @@ export async function saveEstimate(payload:Payload):Promise<{error?:string;id?:s
   items.push({description:line.service.trim(),pricing_mode:line.mode,square_feet:line.mode==='area'?qty:null,rate:line.mode==='area'?rate:null,fixed_price:line.mode==='fixed'?fixed:null,position:i});
  }
  const {data:estimate,error}=await supabase.from('estimates').insert({business_id:membership.business_id,customer_id:customer.id,service_address_id:serviceAddressId,created_by:user.id,notes:payload.notes,discount,tax_rate:taxRate}).select('id').single();
- if(error||!estimate) return {error:'Could not save estimate.'};
+ if(error||!estimate) return {error:'Estimate could not be saved: '+(error?.message||'Database did not return the new estimate.')};
  const {error:itemError}=await supabase.from('estimate_items').insert(items.map(item=>({...item,estimate_id:estimate.id})));
- if(itemError) return {error:'Estimate header saved, but service items failed. Contact your administrator.'};
+ if(itemError) return {error:'Estimate record '+estimate.id+' was created, but its service items failed: '+itemError.message+'. Do not create a duplicate; contact the administrator.'};
  revalidatePath('/estimates');
  return {id:estimate.id};
 }
