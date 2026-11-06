@@ -2,7 +2,7 @@
 import {createClient} from '@/lib/supabase/server';
 import {prepareSigningLink} from './signing-actions';
 import {SERVICE_TEMPLATE,LIABILITY_TEMPLATE} from './templates';
-export async function prepareAgreementBundle(customerId:string,testMode=false){
+export async function prepareAgreementBundle(customerId:string,testMode=false,cancellationDeadline?:string){
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  if(!user)return {error:'Sign in again.'};
@@ -44,7 +44,7 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
   if(insertError)return {error:'Could not save missing agreement drafts: '+insertError.message};
   return {error:'Created '+toCreate.map(d=>d.document_type==='service_contract'?'Service Agreement':'Property Condition Acknowledgment').join(' and ')+' for '+customer.name+'. Click Prepare both agreements again to check signing requirements. Existing older drafts were preserved; nothing was sent.'};
  }
- const first=await prepareSigningLink(service.id);
+ const first=await prepareSigningLink(service.id,false,cancellationDeadline);
  if(!first.token)return {error:'Service Agreement: '+(first.error||'Could not prepare signing link.')};
  const second=await prepareSigningLink(liability.id);
  if(!second.token){
