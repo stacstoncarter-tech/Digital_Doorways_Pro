@@ -1,7 +1,6 @@
 'use server';
 import {createClient} from '@/lib/supabase/server';
 import {prepareSigningLink} from './signing-actions';
-import {createAgreement} from './actions';
 import {SERVICE_TEMPLATE,LIABILITY_TEMPLATE} from './templates';
 export async function prepareAgreementBundle(customerId:string,testMode=false){
  const supabase=await createClient();
@@ -27,25 +26,22 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
   return {serviceToken:first.token,liabilityToken:second.token};
  }
  const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title,body').eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
- if(error)return {error:'Could not load customer agreements.'};
+ if(error)return {error:'Could not load customer agreements: '+error.message};
  const matchesMaster=(body:string,template:string)=>body.startsWith(template.slice(0,75));
  const service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
  const liability=docs?.find(d=>d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE));
  const olderDrafts=(docs||[]).filter(d=>!((d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE))||(d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE))));
  if(olderDrafts.length)return {error:'Older or customized agreement drafts exist for this customer. Review or void them before preparing the current master templates. No signing links were issued.'};
  if(!service||!liability){
-  const created:string[]=[];
-  if(!service){
-   const result=await createAgreement(customerId,'service_contract','Power Clean Pressure & Soft Washing Service Agreement',SERVICE_TEMPLATE);
-   if(result.error)return {error:'Could not create Service Agreement: '+result.error};
-   created.push('Service Agreement');
-  }
-  if(!liability){
-   const result=await createAgreement(customerId,'liability_release','Power Clean Property Condition Disclosure and Acknowledgment of Risk',LIABILITY_TEMPLATE);
-   if(result.error)return {error:'Could not create Liability Acknowledgment: '+result.error};
-   created.push('Liability Acknowledgment');
-  }
-  return {error:'Created the missing '+created.join(' and ')+'. Both drafts are now saved. Review and finalize their terms before sending; legal-review notices cannot be automatically approved.'};
+  const {data:customer,error:customerError}=await supabase.from('customers').select('id,name').eq('id',customerId).eq('business_id',member.business_id).maybeSingle();
+  if(customerError||!customer)return {error:'Customer record could not be loaded: '+(customerError?.message||'Select a saved customer.')};
+  const toCreate=[
+   ...(!service?[{document_type:'service_contract',title:'Power Clean Pressure & Soft Washing Service Agreement',body:SERVICE_TEMPLATE}]:[]),
+   ...(!liability?[{document_type:'liability_release',title:'Power Clean Property Condition Disclosure and Acknowledgment of Risk',body:LIABILITY_TEMPLATE}]:[])
+  ];
+  const {error:insertError}=await supabase.from('customer_agreements').insert(toCreate.map(d=>({...d,business_id:member.business_id,customer_id:customerId,created_by:user.id})));
+  if(insertError)return {error:'Could not save missing agreement drafts: '+insertError.message};
+  return {error:'Both agreement drafts are saved for '+customer.name+'. Review the saved documents and complete required customer, estimate, scheduling, and property-condition information before preparing signing links. No agreements were sent.'};
  }
  const first=await prepareSigningLink(service.id);
  if(!first.token)return {error:'Service Agreement: '+(first.error||'Could not prepare signing link.')};
