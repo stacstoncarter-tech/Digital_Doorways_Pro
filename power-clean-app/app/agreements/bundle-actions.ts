@@ -30,8 +30,9 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
  const matchesMaster=(body:string,template:string)=>body.startsWith(template.slice(0,75));
  const service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
  const liability=docs?.find(d=>d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE));
- const olderDrafts=(docs||[]).filter(d=>!((d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE))||(d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE))));
- if(olderDrafts.length)return {error:'Older or customized agreement drafts exist for this customer. Review or void them before preparing the current master templates. No signing links were issued.'};
+
+ // Older drafts remain untouched and do not block creation of current master agreements.
+ // They are never reused for new signing links.
  if(!service||!liability){
   const {data:customer,error:customerError}=await supabase.from('customers').select('id,name').eq('id',customerId).eq('business_id',member.business_id).maybeSingle();
   if(customerError||!customer)return {error:'Customer record could not be loaded: '+(customerError?.message||'Select a saved customer.')};
@@ -41,7 +42,7 @@ export async function prepareAgreementBundle(customerId:string,testMode=false){
   ];
   const {error:insertError}=await supabase.from('customer_agreements').insert(toCreate.map(d=>({...d,business_id:member.business_id,customer_id:customerId,created_by:user.id})));
   if(insertError)return {error:'Could not save missing agreement drafts: '+insertError.message};
-  return {error:'Both agreement drafts are saved for '+customer.name+'. Review the saved documents and complete required customer, estimate, scheduling, and property-condition information before preparing signing links. No agreements were sent.'};
+  return {error:'Created '+toCreate.map(d=>d.document_type==='service_contract'?'Service Agreement':'Property Condition Acknowledgment').join(' and ')+' for '+customer.name+'. Click Prepare both agreements again to check signing requirements. Existing older drafts were preserved; nothing was sent.'};
  }
  const first=await prepareSigningLink(service.id);
  if(!first.token)return {error:'Service Agreement: '+(first.error||'Could not prepare signing link.')};
