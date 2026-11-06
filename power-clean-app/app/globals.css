@@ -32,3 +32,14 @@
  .workspace .panel section{break-inside:avoid;page-break-inside:avoid}
  a{color:inherit;text-decoration:none}
 }
+
+/* Power Clean guided operations navigation */
+.job-step-nav{position:sticky;top:0;z-index:20;display:flex;gap:8;overflow-x:auto;padding:12px;background:#edf6fa;border:1px solid #d3e6ee;border-radius:12px;margin-top:20px;scrollbar-width:thin}
+.job-step-nav a{flex:0 0 auto;padding:11px 14px;border-radius:9px;background:white;color:#075578;text-decoration:none;font-size:13px;font-weight:700;border:1px solid #d5e6ee}
+.job-step-nav a:hover,.job-step-nav a:focus-visible{background:#087aa9;color:white}
+#job-schedule,#job-field,#job-hazards,#job-photos,#job-deliver,#job-payment{scroll-margin-top:92px}
+.workflow-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:15px}
+.workflow-links a,.job-open-button{display:inline-flex;padding:14px 16px;border-radius:10px;background:#087aa9;color:white;text-decoration:none;font-weight:700}
+.workflow-links a:hover,.job-open-button:hover{background:#075578}
+@media(max-width:560px){.job-step-nav{margin-left:-15px;margin-right:-15px;border-radius:0;top:0}.job-step-nav a{padding:10px}.workflow-links{grid-template-columns:1fr 1fr}}
+@media print{.job-step-nav,.workflow-links{display:none!important}}
