@@ -43,3 +43,15 @@
 .workflow-links a:hover,.job-open-button:hover{background:#075578}
 @media(max-width:560px){.job-step-nav{margin-left:-15px;margin-right:-15px;border-radius:0;top:0}.job-step-nav a{padding:10px}.workflow-links{grid-template-columns:1fr 1fr}}
 @media print{.job-step-nav,.workflow-links{display:none!important}}
+
+.global-navigation{position:sticky;top:0;z-index:60;background:#092b3d;color:#fff;box-shadow:0 2px 10px #092b3d22}
+.global-nav-bar{display:flex;align-items:center;gap:18px;max-width:1200px;margin:auto;padding:10px 20px;flex-wrap:wrap}
+.global-nav-bar a{color:white;text-decoration:none;font-size:13px;font-weight:600}
+.global-nav-brand{font-weight:800!important;letter-spacing:1px;margin-right:auto}
+.global-nav-bar button{background:#168bd3;color:white;border:0;border-radius:8px;padding:10px 14px;font-weight:700}
+.global-nav-directory{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;max-width:1200px;margin:auto;padding:20px 24px 26px;border-top:1px solid #315365}
+.global-nav-directory h2{font-size:14px;color:#a9d9ef;margin:0 0 12px}
+.global-nav-directory a{display:block;padding:9px 0;color:white;text-decoration:none;font-size:13px}
+.global-nav-directory a:hover{text-decoration:underline}
+@media(max-width:650px){.global-nav-bar{gap:10px;padding:9px 12px}.global-nav-bar a{font-size:12px}.global-nav-directory{grid-template-columns:1fr;gap:15px;max-height:65vh;overflow-y:auto}}
+@media print{.global-navigation{display:none!important}}
