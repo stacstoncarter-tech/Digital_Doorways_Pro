@@ -1,0 +1,4 @@
+import {redirect} from 'next/navigation';
+import {createClient} from '@/lib/supabase/server';
+import AuthorizationForm from './authorization-form';
+export default async function Page(){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)redirect('/login');const {data:m}=await s.from('business_members').select('business_id').eq('user_id',user.id).eq('role','owner').maybeSingle();if(!m)return <main>Owner access required</main>;const {data:a}=await s.from('business_signature_authorizations').select('revoked_at,signature_image_data').eq('business_id',m.business_id).maybeSingle();return <main className="workspace"><h1>Owner Signature</h1><AuthorizationForm active={!!a&&!a.revoked_at}/><p>Per-document approval is required before your electronic signature is recorded.</p></main>}
