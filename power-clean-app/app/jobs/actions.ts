@@ -31,7 +31,7 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
  const startIso=start?new Date(start).toISOString():null,endIso=end?new Date(end).toISOString():null;
  if(endIso&&(!startIso||endIso<=startIso))return {error:'Check the service date and arrival window.',success:''};
  if(status==='scheduled'&&!startIso)return {error:'A scheduled job needs a start date.',success:''};
- const {data:old}=await ctx.supabase.from('jobs').select('status,completed_at').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
+ const {data:old}=await ctx.supabase.from('jobs').select('status,completed_at,notes').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!old)return {error:'Job not found.',success:''};
  if(['scheduled','in_progress','completed'].includes(status)){
   const {data:job}=await ctx.supabase.from('jobs').select('customer_id').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
@@ -57,7 +57,7 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
    return {error:excluded.length?'Scheduling blocked: signed test-only or draft agreements cannot authorize real work. Prepare and sign the approved final agreements for this customer. Missing eligible document(s): '+missing+'.':'Scheduling blocked: no eligible signed '+missing+' found for this job’s customer. Open Agreements for this customer, verify both final documents are signed, then retry.',success:''};
   }
  }
- if(/^\[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK\]/.test(old.status==='unscheduled'?'':notes))return {error:'Test-only jobs cannot be converted into real work by editing their notes.',success:''};
+ if((old.notes||'').startsWith('[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK]')&&status!=='canceled')return {error:'This is a TEST ONLY job. It cannot be converted into real customer work; create a separate production job with approved agreements.',success:''};
  const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update job.',success:''};
  revalidatePath('/jobs');return {error:'',success:'Job updated.'};
