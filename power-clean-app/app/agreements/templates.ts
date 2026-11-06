@@ -166,7 +166,7 @@ copies of Exhibit A;
 notice of cancellation; and
 (d) Contractor shall not commence the Services before the expiration of the cancellation period,
 except as permitted by applicable law in the case of a bona fide emergency.
-8.2 Standard Customer Cancellation Policy. For cancellations outside any applicable statutory cancellation period, Customer is requested to provide at least twenty-four (24) hours' notice before the scheduled service start time. This is a scheduling notice policy only and does not create a cancellation fee or reduce any non-waivable cancellation rights.\n\n8.3 Rescheduling. Either Party may request that the Services be rescheduled, including on account
+8.2 Standard Customer Cancellation Policy. For cancellations outside any applicable statutory cancellation period, Customer is requested to provide at least seventy-two (72) hours' notice before the scheduled service start time. This is a scheduling notice policy only and does not create a cancellation fee or reduce any non-waivable cancellation rights.\n\n8.3 Rescheduling. Either Party may request that the Services be rescheduled, including on account
 of inclement weather, and the Parties shall cooperate in good faith to agree on a substitute date.
 
 8.4 Cancellation Charges. No cancellation fee or forfeiture of deposit shall apply unless it is
