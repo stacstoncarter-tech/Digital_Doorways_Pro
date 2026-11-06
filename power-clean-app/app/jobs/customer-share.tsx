@@ -8,7 +8,7 @@ export default function CustomerShare({jobId}:{jobId:string}){
  const mail=share?'mailto:'+encodeURIComponent(share.email)+'?subject='+encodeURIComponent(share.subject)+'&body='+encodeURIComponent(share.message):'';
  const sms=share?'sms:'+share.phone.replace(/[^\d+]/g,'')+'?body='+encodeURIComponent(share.subject+'\n'+share.message):'';
  return <details><summary>Send appointment confirmation & job photos</summary><div style={{display:'grid',gap:12,maxWidth:650,marginTop:12}}>
- <p>Prepare a customer-ready appointment message. Email and text open your device's messaging app for review and sending; they are not sent automatically.</p>
+ <p>Prepare a customer-ready appointment message. Email and text open your device messaging app for review and sending; they are not sent automatically.</p>
  <label><input type="checkbox" checked={photos} onChange={e=>{setPhotos(e.target.checked);setShare(null);}}/> Include up to 20 uploaded job photos as secure 24-hour links</label>
  <button type="button" onClick={generate} disabled={pending}>{pending?'Preparing…':'Prepare customer message'}</button>
  {error&&<p role="alert">{error}</p>}
