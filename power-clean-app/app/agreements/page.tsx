@@ -1,4 +1,5 @@
 import SigningLink from './signing-link';
+import SavedDraftManager from './saved-draft-manager';
 import BundleSelector from './bundle-selector';
 import Link from 'next/link';
 import {redirect} from 'next/navigation';
@@ -10,7 +11,7 @@ export default async function AgreementsPage({searchParams}:{searchParams:Promis
  const supabase=await createClient();
  const {data:{user}}=await supabase.auth.getUser();
  if(!user)redirect('/login');
- const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();
+ const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)return <main className="workspace"><h1>Business access pending</h1></main>;
  const [{data:customers,error:customerError},{data:agreements,error:agreementsError}]=await Promise.all([
  supabase.from('customers').select('id,name,email,phone').eq('business_id',member.business_id).order('name').limit(500),
@@ -25,6 +26,7 @@ export default async function AgreementsPage({searchParams}:{searchParams:Promis
  <AgreementForm initialTemplate={requestedTemplate==='liability_release'?'liability_release':requestedTemplate==='service_contract'?'service_contract':''} customers={customers||[]} initialCustomerId={(customers||[]).some(c=>c.id===requestedCustomer)?requestedCustomer:''}/>
  <section className="panel"><h2>Find agreements</h2><form method="get" style={{display:'flex',flexWrap:'wrap',gap:12,alignItems:'end'}}><label>Customer or document title<input name="q" maxLength={100} defaultValue={requestedQuery||''} placeholder="Search agreements"/></label><label>Status<select name="status" defaultValue={selectedStatus}>{['all','draft','sent','signed','void'].map(s=><option key={s} value={s}>{s==='all'?'All statuses':s==='sent'?'Awaiting signature':s.charAt(0).toUpperCase()+s.slice(1)}</option>)}</select></label><button type="submit">Filter</button><Link href="/agreements">Clear</Link></form><p className="muted">Showing {visibleAgreements.length} of {(agreements||[]).length} recent agreements.</p></section>
  <section className="panel"><h2>Send both agreements together</h2><p>Prepare one link containing both customer documents. Choose a customer. Missing agreement drafts will be created automatically; finalized documents can then be prepared together.</p><BundleSelector customers={customers||[]} initialCustomerId={(customers||[]).some(c=>c.id===requestedCustomer)?requestedCustomer:''}/><p className="muted">Choose a customer above. Any missing draft will be created for review.</p></section>
+ {['owner','admin'].includes(member.role)&&<SavedDraftManager drafts={(agreements||[]).filter(a=>a.status==='draft').map(a=>({id:a.id,title:a.title,customerName:(a.customers as unknown as {name:string}|null)?.name||'Customer',createdAt:a.created_at}))}/>}
  <section className="panel"><h2>Saved agreements</h2>{requestedCustomer&&<p><Link href="/agreements">Show all customer agreements</Link></p>}<nav aria-label="Agreement status filters" style={{display:'flex',flexWrap:'wrap',gap:12,marginBottom:16}}>{(['all','draft','sent','signed','void'] as const).map(s=><Link key={s} href={`/agreements?status=${s}`} aria-current={selectedStatus===s?'page':undefined} style={{fontWeight:selectedStatus===s?700:400}}>{s==='sent'?'Awaiting signature':s.charAt(0).toUpperCase()+s.slice(1)} ({counts[s]})</Link>)}</nav>{!visibleAgreements.length?<p>No agreements in this category.</p>:<ul>{visibleAgreements.map(a=><li key={a.id}><Link href={`/agreements/view?id=${a.id}`}><strong>{a.title}</strong></Link> — {(a.customers as unknown as {name:string}|null)?.name||'Customer'} — {a.status==='sent'?'Awaiting signature':a.status} — {new Date(a.created_at).toLocaleDateString('en-US')}{a.status==='sent'&&a.signing_expires_at&&<span> — {new Date(a.signing_expires_at).getTime()<=Date.now()?'Signing link expired — replace it':`Link expires ${new Date(a.signing_expires_at).toLocaleDateString('en-US')}`}</span>}{(a.status==='draft'||a.status==='sent')&&<SigningLink reissue={a.status==='sent'} id={a.id} customerName={(a.customers as unknown as {name:string}|null)?.name} email={(a.customers as unknown as {email:string|null}|null)?.email} phone={(a.customers as unknown as {phone:string|null}|null)?.phone}/>}</li>)}</ul>}</section>
  </main>;
 }
