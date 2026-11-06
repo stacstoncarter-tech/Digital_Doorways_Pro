@@ -13,13 +13,13 @@ export function CustomerProfileEditor({customer}:{customer:{id:string;name:strin
  {state.error&&<p role="alert">{state.error}</p>}{state.success&&<p role="status">{state.success}</p>}
  </form></section>;
 }
-export function PropertyEditor({customerId,property}:{customerId:string;property:{id:string;label:string;address:string}}){
+export function PropertyEditor({customerId,property}:{customerId:string;property:{id:string;label:string;address:string;is_primary?:boolean}}){
  const [state,action,pending]=useActionState(updateAddress,initial);
  return <form action={action} style={{padding:'12px 0',borderTop:'1px solid #e1eaf0'}}>
  <input type="hidden" name="customerId" value={customerId}/><input type="hidden" name="addressId" value={property.id}/>
  <label>Property label<input name="label" required maxLength={80} defaultValue={property.label}/></label>
  <label>Service address<input name="address" required maxLength={240} defaultValue={property.address}/></label>
- <button className="secondary" disabled={pending}>Update property</button>
+ <label style={{display:"block",margin:"10px 0"}}><input type="checkbox" name="makePrimary" defaultChecked={Boolean(property.is_primary)}/> Set as primary service address</label><button className="secondary" disabled={pending}>Update property</button>
  {state.error&&<p role="alert">{state.error}</p>}{state.success&&<p role="status">{state.success}</p>}
  </form>;
 }
