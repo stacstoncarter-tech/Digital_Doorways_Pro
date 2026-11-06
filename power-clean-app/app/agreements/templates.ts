@@ -166,14 +166,14 @@ copies of Exhibit A;
 notice of cancellation; and
 (d) Contractor shall not commence the Services before the expiration of the cancellation period,
 except as permitted by applicable law in the case of a bona fide emergency.
-8.2 Rescheduling. Either Party may request that the Services be rescheduled, including on account
+8.2 Standard Customer Cancellation Policy. For cancellations outside any applicable statutory cancellation period, Customer is requested to provide at least twenty-four (24) hours' notice before the scheduled service start time. This is a scheduling notice policy only and does not create a cancellation fee or reduce any non-waivable cancellation rights.\n\n8.3 Rescheduling. Either Party may request that the Services be rescheduled, including on account
 of inclement weather, and the Parties shall cooperate in good faith to agree on a substitute date.
 
-8.3 Cancellation Charges. No cancellation fee or forfeiture of deposit shall apply unless it is
+8.4 Cancellation Charges. No cancellation fee or forfeiture of deposit shall apply unless it is
 expressly stated in the Estimate. No such charge shall apply to any cancellation made pursuant to
 Section 8.1.
 
-8.4 Cancellation by Contractor. If Contractor cancels the Services and the Parties do not agree on a
+8.5 Cancellation by Contractor. If Contractor cancels the Services and the Parties do not agree on a
 substitute date, Contractor shall refund any deposit in full within ten (10) Business Days.
 
 ARTICLE 9. RESPONSIBILITY FOR DAMAGE; CLAIMS
