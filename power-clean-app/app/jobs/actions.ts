@@ -24,6 +24,7 @@ export async function createJobFromEstimate(estimateId:string):Promise<Result>{
 export async function updateJob(_state:{error:string;success:string},form:FormData):Promise<{error:string;success:string}>{
  const ctx=await context();if(!ctx)return {error:'Access denied.',success:''};
  const id=String(form.get('id')||''),status=String(form.get('status')||''),notes=String(form.get('notes')||'').trim();
+ const testScheduling=form.get('testScheduling')==='on';
  if(!/^[0-9a-f-]{36}$/i.test(id)||!['unscheduled','scheduled','in_progress','completed','canceled'].includes(status)||notes.length>4000)return {error:'Invalid job details.',success:''};
  const start=String(form.get('start')||''),end=String(form.get('end')||'');
  if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end))))return {error:'Check the service dates.',success:''};
@@ -39,12 +40,24 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
   if(docError)return {error:'Unable to verify signed documents. Try again.',success:''};
   const types=new Set((docs||[]).filter(d=>!/^TEST ONLY\b/i.test(d.title.trim())&&!/\bDraft\b/i.test(d.title)&&!/^TEST ONLY\b/i.test(d.body.trim())&&!/DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE/i.test(d.body)).map(d=>d.document_type));
   if(!types.has('service_contract')||!types.has('liability_release')){
+   const testDocs=(docs||[]).filter(d=>/^TEST ONLY\b/i.test(d.title.trim())||/^TEST ONLY\b/i.test(d.body.trim()));
+   const testTypes=new Set(testDocs.map(d=>d.document_type));
+   const isTestOnlyBundle=testTypes.has('service_contract')&&testTypes.has('liability_release');
+   if(testScheduling&&ctx.member.role==='owner'&&status==='scheduled'&&isTestOnlyBundle){
+    const testNotes='[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK] '+notes;
+    const {error:testError}=await ctx.supabase.from('jobs').update({status,notes:testNotes,scheduled_start:startIso,scheduled_end:endIso,completed_at:null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
+    if(testError)return {error:'Could not save test schedule.',success:''};
+    revalidatePath('/jobs');revalidatePath('/jobs/calendar');
+    return {error:'',success:'TEST ONLY schedule saved. This does not authorize real customer work.'};
+   }
+   if(testScheduling)return {error:'Test scheduling requires an owner account, Scheduled status, and both signed TEST ONLY agreements for this customer.',success:''};
    const missing=[!types.has('service_contract')?'Service Agreement':null,!types.has('liability_release')?'Property Condition & Liability Acknowledgment':null].filter(Boolean).join(' and ');
    const signed=(docs||[]).filter(d=>d.status==='signed');
    const excluded=signed.filter(d=>/^TEST ONLY\b/i.test(d.title.trim())||/\bDraft\b/i.test(d.title)||/^TEST ONLY\b/i.test(d.body.trim())||/DRAFT TEMPLATE — REVIEW WITH FLORIDA COUNSEL BEFORE USE/i.test(d.body));
    return {error:excluded.length?'Scheduling blocked: signed test-only or draft agreements cannot authorize real work. Prepare and sign the approved final agreements for this customer. Missing eligible document(s): '+missing+'.':'Scheduling blocked: no eligible signed '+missing+' found for this job’s customer. Open Agreements for this customer, verify both final documents are signed, then retry.',success:''};
   }
  }
+ if(/^\[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK\]/.test(old.status==='unscheduled'?'':notes))return {error:'Test-only jobs cannot be converted into real work by editing their notes.',success:''};
  const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update job.',success:''};
  revalidatePath('/jobs');return {error:'',success:'Job updated.'};
