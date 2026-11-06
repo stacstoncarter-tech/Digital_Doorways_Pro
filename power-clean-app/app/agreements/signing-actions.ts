@@ -15,7 +15,7 @@ export async function prepareSigningLink(id:string,reissue=false){
  if(!agreement)return {error:'Agreement not found.'};
  const {data:customer}=await supabase.from('customers').select('name,email,phone,service_address').eq('id',agreement.customer_id).eq('business_id',member.business_id).maybeSingle();
  if(!customer)return {error:'Customer information is missing.'};
- const {data:addressRow}=await supabase.from('customer_addresses').select('address').eq('customer_id',agreement.customer_id).eq('business_id',member.business_id).eq('is_primary',true).limit(1).maybeSingle();
+ const {data:addressRow}=await supabase.from('customer_addresses').select('address').eq('customer_id',agreement.customer_id).eq('business_id',member.business_id).order('is_primary',{ascending:false}).order('created_at',{ascending:true}).limit(1).maybeSingle();
  const address=addressRow?.address||customer.service_address||'';
  const {data:estimate}=await supabase.from('estimates').select('id,created_at').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).in('status',['accepted','approved']).order('created_at',{ascending:false}).limit(1).maybeSingle();
  const {data:items}=estimate?await supabase.from('estimate_items').select('pricing_mode,square_feet,rate,fixed_price').eq('estimate_id',estimate.id):{data:null};
