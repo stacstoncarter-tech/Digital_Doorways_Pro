@@ -44,6 +44,10 @@ export async function prepareAgreementBundle(customerId:string,testMode=false,ca
   if(insertError)return {error:'Could not save missing agreement drafts: '+insertError.message};
   return {error:'Created '+toCreate.map(d=>d.document_type==='service_contract'?'Service Agreement':'Property Condition Acknowledgment').join(' and ')+' for '+customer.name+'. Click Prepare both agreements again to check signing requirements. Existing older drafts were preserved; nothing was sent.'};
  }
+ if(!cancellationDeadline)return {error:'Enter the cancellation deadline in the date field above Prepare both agreements. This is required for the Service Agreement notice; no documents were sent.'};
+ const [serviceCheck,liabilityCheck]=await Promise.all([prepareSigningLink(service.id,false,cancellationDeadline,true),prepareSigningLink(liability.id,false,undefined,true)]);
+ const blockers=[...(!serviceCheck.ready?['Service Agreement: '+(serviceCheck.error||'Validation failed')]:[]),...(!liabilityCheck.ready?['Property Condition Acknowledgment: '+(liabilityCheck.error||'Validation failed')]:[])];
+ if(blockers.length)return {error:'Before signing links can be created, complete: '+blockers.join(' | ')+'. Neither document was sent.'};
  const first=await prepareSigningLink(service.id,false,cancellationDeadline);
  if(!first.token)return {error:'Service Agreement: '+(first.error||'Could not prepare signing link.')};
  const second=await prepareSigningLink(liability.id);
