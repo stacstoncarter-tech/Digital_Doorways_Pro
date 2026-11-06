@@ -42,7 +42,7 @@ export async function prepareSigningLink(id:string,reissue=false,cancellationDea
   if(preparedBody.includes('[DATE / WINDOW]'))missing.push('a scheduled service date');
   // The statutory deadline is determined from the actual signing date, not the preparation date.
   if(agreement.document_type==='liability_release'&&['[AREA 1]','[CONDITION 1]','[PHOTOGRAPHED 1]','[NO KNOWN CONDITIONS]','[ATTACHMENTS]','[PAGE COUNT]'].some(field=>preparedBody.includes(field)))missing.push('actual property-condition inspection and disclosure fields');
-  const unresolved=[...new Set(preparedBody.match(/\[[A-Z][A-Z0-9 /-]+\]/g)||[])].filter(field=>!(agreement.document_type==='service_contract'&&field==='[PHOTO CONSENT]'));
+  const unresolved=[...new Set(preparedBody.match(/\[[A-Z][A-Z0-9 /-]+\]/g)||[])].filter(field=>!(agreement.document_type==='service_contract'&&(field==='[PHOTO CONSENT]'||field==='[CANCELLATION DEADLINE]')));
   if(unresolved.length)missing.push('unfilled contract fields: '+unresolved.join(', '));
   if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
  }
