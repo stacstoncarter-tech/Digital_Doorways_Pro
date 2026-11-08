@@ -18,9 +18,12 @@ export async function prepareSigningLink(id:string,reissue=false,cancellationDea
  if(!customer)return {error:'Customer information is missing.'};
  const {data:addressRow}=await supabase.from('customer_addresses').select('address').eq('customer_id',agreement.customer_id).eq('business_id',member.business_id).order('is_primary',{ascending:false}).order('created_at',{ascending:true}).limit(1).maybeSingle();
  const address=addressRow?.address||customer.service_address||'';
- const {data:estimate}=await supabase.from('estimates').select('id,created_at').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).in('status',['accepted','approved']).order('created_at',{ascending:false}).limit(1).maybeSingle();
- const {data:items}=estimate?await supabase.from('estimate_items').select('pricing_mode,square_feet,rate,fixed_price').eq('estimate_id',estimate.id):{data:null};
- const total=items?.reduce((sum,item)=>sum+(item.pricing_mode==='fixed'?Number(item.fixed_price||0):Number(item.square_feet||0)*Number(item.rate||0)),0);
+ const {data:estimate,error:estimateError}=await supabase.from('estimates').select('id,created_at,discount,tax_rate').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).eq('status','accepted').order('created_at',{ascending:false}).limit(1).maybeSingle();
+ if(estimateError)return {error:'Could not load the accepted estimate: '+estimateError.message};
+ const {data:items,error:itemsError}=estimate?await supabase.from('estimate_items').select('pricing_mode,square_feet,rate,fixed_price').eq('estimate_id',estimate.id):{data:null,error:null};
+ if(itemsError)return {error:'Could not load estimate prices: '+itemsError.message};
+ const subtotal=items?.reduce((sum,item)=>sum+(item.pricing_mode==='fixed'?Number(item.fixed_price||0):Number(item.square_feet||0)*Number(item.rate||0)),0);
+ const total=Math.max(0,(subtotal||0)-Math.min(subtotal||0,Number(estimate?.discount||0)))*(1+Number(estimate?.tax_rate||0)/100);
  const amount=items?.length?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(total||0):'';
  const {data:job}=await supabase.from('jobs').select('scheduled_start').eq('business_id',member.business_id).eq('customer_id',agreement.customer_id).order('created_at',{ascending:false}).limit(1).maybeSingle();
  const today=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',dateStyle:'medium'}).format(new Date());
@@ -52,7 +55,7 @@ export async function prepareSigningLink(id:string,reissue=false,cancellationDea
   }
   const unresolved=[...new Set(preparedBody.match(/\[[A-Z][A-Z0-9 /-]+\]/g)||[])].filter(field=>!(agreement.document_type==='service_contract'&&(field==='[PHOTO CONSENT]'||field==='[CANCELLATION DEADLINE]')));
   if(unresolved.length)missing.push('unfilled contract fields: '+unresolved.join(', '));
-  if(missing.length)return {error:'Complete the customer record before sending: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
+  if(missing.length)return {error:'This customer needs the following before real signing links can be prepared: '+[...new Set(missing)].join(', ')+'. The agreements have not been sent.'};
  }
  const token=randomBytes(32).toString('hex');
  const hash=createHash('sha256').update(token).digest('hex');
