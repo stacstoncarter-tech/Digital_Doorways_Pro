@@ -1,6 +1,7 @@
 'use server';
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
+import {serviceTimeToIso} from '@/lib/schedule-time';
 type Result={error?:string;success?:boolean};
 async function context(){
  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();
@@ -27,8 +28,8 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
  const testScheduling=form.get('testScheduling')==='on';
  if(!/^[0-9a-f-]{36}$/i.test(id)||!['unscheduled','scheduled','in_progress','completed','canceled'].includes(status)||notes.length>4000)return {error:'Invalid job details.',success:''};
  const start=String(form.get('start')||''),end=String(form.get('end')||'');
- if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end))))return {error:'Check the service dates.',success:''};
- const startIso=start?new Date(start).toISOString():null,endIso=end?new Date(end).toISOString():null;
+ const startIso=start?serviceTimeToIso(start):null,endIso=end?serviceTimeToIso(end):null;
+ if((start&&!startIso)||(end&&!endIso))return {error:'Check the service dates. Enter valid Eastern times.',success:''};
  if(endIso&&(!startIso||endIso<=startIso))return {error:'Check the service date and arrival window.',success:''};
  if(status==='scheduled'&&!startIso)return {error:'A scheduled job needs a start date.',success:''};
  const {data:old}=await ctx.supabase.from('jobs').select('status,completed_at,notes').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
@@ -47,7 +48,7 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
     const testNotes='[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK] '+notes;
     const {error:testError}=await ctx.supabase.from('jobs').update({status,notes:testNotes,scheduled_start:startIso,scheduled_end:endIso,completed_at:null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
     if(testError)return {error:'Could not save test schedule.',success:''};
-    revalidatePath('/jobs');revalidatePath('/jobs/calendar');
+    revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);
     return {error:'',success:'TEST ONLY schedule saved. This does not authorize real customer work.'};
    }
    if(testScheduling)return {error:'Test scheduling requires an owner account, Scheduled status, and both signed TEST ONLY agreements for this customer.',success:''};
@@ -60,5 +61,5 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
  if((old.notes||'').startsWith('[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK]')&&status!=='canceled')return {error:'This is a TEST ONLY job. It cannot be converted into real customer work; create a separate production job with approved agreements.',success:''};
  const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update job.',success:''};
- revalidatePath('/jobs');return {error:'',success:'Job updated.'};
+ revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);return {error:'',success:'Job updated.'};
 }
