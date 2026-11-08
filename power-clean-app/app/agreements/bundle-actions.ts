@@ -28,8 +28,8 @@ export async function prepareAgreementBundle(customerId:string,testMode=false,ca
  const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title,body').eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
  if(error)return {error:'Could not load customer agreements: '+error.message};
  const matchesMaster=(body:string,template:string)=>body.startsWith(template.slice(0,75));
- const service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
- const liability=docs?.find(d=>d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE));
+ let service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
+ let liability=docs?.find(d=>d.document_type==='liability_release'&&matchesMaster(d.body,LIABILITY_TEMPLATE));
 
  // Older drafts remain untouched and do not block creation of current master agreements.
  // They are never reused for new signing links.
@@ -40,10 +40,12 @@ export async function prepareAgreementBundle(customerId:string,testMode=false,ca
    ...(!service?[{document_type:'service_contract',title:'Power Clean Pressure & Soft Washing Service Agreement',body:SERVICE_TEMPLATE}]:[]),
    ...(!liability?[{document_type:'liability_release',title:'Power Clean Property Condition Disclosure and Acknowledgment of Risk',body:LIABILITY_TEMPLATE}]:[])
   ];
-  const {error:insertError}=await supabase.from('customer_agreements').insert(toCreate.map(d=>({...d,business_id:member.business_id,customer_id:customerId,created_by:user.id})));
+  const {data:created,error:insertError}=await supabase.from('customer_agreements').insert(toCreate.map(d=>({...d,business_id:member.business_id,customer_id:customerId,created_by:user.id}))).select('id,document_type,status,title,body');
   if(insertError)return {error:'Could not save missing agreement drafts: '+insertError.message};
-  return {error:'Created '+toCreate.map(d=>d.document_type==='service_contract'?'Service Agreement':'Property Condition Acknowledgment').join(' and ')+' for '+customer.name+'. Click Prepare both agreements again to check signing requirements. Existing older drafts were preserved; nothing was sent.'};
+  service=service||created?.find(d=>d.document_type==='service_contract');
+  liability=liability||created?.find(d=>d.document_type==='liability_release');
  }
+ if(!service||!liability)return {error:'Both agreement drafts could not be verified. Nothing was sent.'};
  const first=await prepareSigningLink(service.id,false,cancellationDeadline);
  if(!first.token)return {error:'Service Agreement: '+(first.error||'Could not prepare signing link.')};
  const second=await prepareSigningLink(liability.id);
