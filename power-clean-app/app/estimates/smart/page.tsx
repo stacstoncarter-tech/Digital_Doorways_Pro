@@ -397,7 +397,7 @@ export default function SmartEstimate() {
                           confirmedSquareFeet: undefined,
                           measurementSource: undefined,
                           material:
-                            kind === "monument" ? "granite" : "concrete",
+                            kind === "monument" ? "granite" : ((kind === "stairs" ? STAIR_MATERIALS : MATERIALS) as readonly string[]).includes(a.material) ? a.material : "concrete",
                           treatments: [
                             {
                               type:
