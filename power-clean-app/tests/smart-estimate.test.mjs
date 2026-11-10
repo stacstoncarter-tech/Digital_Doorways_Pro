@@ -7,6 +7,7 @@ import {
   measure,
   geometry,
   marginPrice,
+  complexityLaborRate,
   parseDraft,
   TREATMENTS,
   MATERIALS,
@@ -274,4 +275,13 @@ test("SH inventory shortage warns and tank volume must be positive", () => {
   assert.ok(calculate(d).warnings.some((x) => x.includes("shortfall")));
   d.config.tankGal = 0;
   assert.throws(() => calculate(d));
+});
+
+test("complexity labor rate uses editable $30 baseline and severity", () => {
+  assert.equal(defaults().laborRate, 30);
+  assert.equal(complexityLaborRate(30, 1), 25);
+  assert.equal(complexityLaborRate(30, 1.5), 30);
+  assert.equal(complexityLaborRate(30, 2), 35);
+  assert.equal(complexityLaborRate(32, 2), 37);
+  assert.throws(() => complexityLaborRate(30, 3));
 });
