@@ -366,6 +366,7 @@ export function calculate(draft: Draft) {
     hours: number;
     laborHours: number;
     solutionGal: number;
+    passes: number;
     concentrateGal: number;
     waterGal: number;
     surfactantOz: number;
@@ -513,10 +514,12 @@ export function calculate(draft: Draft) {
           a.name + ": enter a positive material labor productivity factor.",
         );
       const treated = (area * t.percent) / 100;
+      // Severity controls explicit application passes; product coats are additional required coats.
+      const passes = t.severity === 1 ? 1 : t.severity === 1.5 ? 2 : 3;
       const solutionGal =
         (treated / p.coverage) *
         p.coats *
-        t.severity *
+        passes *
         (1 + c.wastePercent / 100);
       let fraction = p.productParts / (p.productParts + p.waterParts),
         surfactantOz = 0;
@@ -555,7 +558,7 @@ export function calculate(draft: Draft) {
         : 0;
       const hours =
         (treated / (p.productivity * (factor > 0 ? factor : 1))) *
-          t.severity *
+          passes *
           p.coats +
         p.dwellMinutes / 60 +
         detail;
@@ -591,6 +594,7 @@ export function calculate(draft: Draft) {
         hours,
         laborHours: hours * c.crew,
         solutionGal,
+        passes,
         concentrateGal,
         waterGal,
         surfactantOz,
@@ -649,6 +653,8 @@ export function calculate(draft: Draft) {
     markup: cost ? (100 * (total - cost)) / cost : 0,
     hours: rows.reduce((n, r) => n + r.hours, 0) + sharedHours,
     laborHours: (rows.reduce((n, r) => n + r.hours, 0) + sharedHours) * c.crew,
+    chemicalCost: money(rows.reduce((n, r) => n + r.chemicalCost, 0)),
+    totalSolutionGal: rows.reduce((n, r) => n + r.solutionGal, 0),
     shRequired,
   };
 }
