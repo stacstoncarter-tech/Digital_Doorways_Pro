@@ -8,3 +8,5 @@ test('invalid inches rejected and multiple labels remain independent',()=>{asser
 test('confirmed image area feeds engine and survives snapshot',()=>{const a={...newArea(),confirmedSquareFeet:1250,measurementSource:'1,250 sq ft'};assert.equal(geometry(a).area,1250);const d=parseDraft({version:1,customerId:'',serviceAddressId:'',notes:'',areas:[a],config:defaults()});assert.equal(d.areas[0].confirmedSquareFeet,1250);assert.throws(()=>geometry({...a,confirmedSquareFeet:NaN}));assert.throws(()=>geometry({...a,kind:'stairs'}));});
 
 test('user supplied rust product price is retained without marking product verified',()=>{assert.equal(defaults().products.rust.price,85);assert.equal(defaults().products.rust.productVerified,false);});
+
+test('exact selected rust listing and gallon are configured',()=>{const p=defaults().products.rust;assert.equal(p.containerGal,1);assert.equal(p.url,'https://www.amazon.com/dp/B0FFQ7PLWF');assert.equal(p.dwellMinutes,2.5);assert.match(p.name,/Rust Remedy/);});

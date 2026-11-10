@@ -201,11 +201,11 @@ export function defaults(): Config {
         250,
       ),
       rust: {...p(
-        "Previously selected Amazon rust product — identification required",
-        "",
+        "Southeast Softwash Rust Remedy — 1 gallon",
+        "https://www.amazon.com/dp/B0FFQ7PLWF",
         150,
         200,
-      ),price:85},
+      ),price:85,dwellMinutes:2.5},
       seal: p(
         "Super Seal Siloxane",
         "https://southeastsoftwash.com/products/super-seal-siloxane-concrete-sealer-water-based",
