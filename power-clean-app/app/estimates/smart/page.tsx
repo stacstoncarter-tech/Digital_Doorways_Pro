@@ -990,6 +990,7 @@ export default function SmartEstimate() {
                       <th>Service</th>
                       <th>Area</th>
                       <th>Applied / product / water gal</th>
+                      <th>Passes</th>
                       <th>Surfactant oz</th>
                       <th>Hours</th>
                       <th>Chemicals</th>
@@ -1006,6 +1007,7 @@ export default function SmartEstimate() {
                           {x.concentrateGal.toFixed(3)} /{" "}
                           {x.waterGal.toFixed(3)}
                         </td>
+                        <td>{x.passes}</td>
                         <td>{x.surfactantOz.toFixed(2)}</td>
                         <td>{x.hours.toFixed(2)}</td>
                         <td>{usd(x.chemicalCost)}</td>
@@ -1016,7 +1018,7 @@ export default function SmartEstimate() {
                 </table>
               </div>
               <p>
-                Operating cost {usd(r.cost)} · Operating profit {usd(r.profit)}{" "}
+                Total chemicals {usd(r.chemicalCost)} · Solution {r.totalSolutionGal.toFixed(2)} gal · Operating cost {usd(r.cost)} · Operating profit {usd(r.profit)}{" "}
                 · Margin {r.margin.toFixed(2)}% · Markup {r.markup.toFixed(2)}%
               </p>
               <p className="smart-total">
