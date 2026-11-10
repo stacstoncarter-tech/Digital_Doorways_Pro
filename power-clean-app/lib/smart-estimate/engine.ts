@@ -32,6 +32,8 @@ export type Area = {
   name: string;
   kind: "rectangle" | "stairs" | "monument";
   material: string;
+  confirmedSquareFeet?: number;
+  measurementSource?: string;
   length: Measurement;
   width: Measurement;
   height: Measurement;
@@ -128,7 +130,9 @@ export function geometry(a: Area) {
     w = measure(a.width),
     h = measure(a.height),
     d = measure(a.depth);
-  if (a.kind === "rectangle") return { area: l * w, parts: { surface: l * w } };
+  if (a.confirmedSquareFeet !== undefined && (a.kind !== "rectangle" || !Number.isFinite(a.confirmedSquareFeet) || a.confirmedSquareFeet <= 0 || a.confirmedSquareFeet > 1e8)) throw Error("Invalid confirmed square footage.");
+  if (a.measurementSource !== undefined && (typeof a.measurementSource !== "string" || a.measurementSource.length > 500)) throw Error("Invalid measurement source.");
+  if (a.kind === "rectangle") {const area=a.confirmedSquareFeet ?? l*w;return { area, parts: { surface: area } };}
   if (a.kind === "stairs") {
     if (
       !Number.isInteger(a.steps) ||
@@ -543,7 +547,9 @@ export function calculate(draft: Draft) {
             (c.equipmentHourly ?? 0) +
             (c.overheadHourly ?? 0));
       const dimensions =
-        a.kind === "rectangle"
+        a.confirmedSquareFeet !== undefined
+          ? `Confirmed area: ${a.confirmedSquareFeet} sq ft`
+          : a.kind === "rectangle"
           ? `${a.length.ft} ft ${a.length.inches} in × ${a.width.ft} ft ${a.width.inches} in`
           : a.kind === "stairs"
             ? `${a.steps} steps; ${a.width.ft} ft ${a.width.inches} in wide; treads ${a.depth.ft} ft ${a.depth.inches} in; risers ${a.height.ft} ft ${a.height.inches} in; ${a.sides} sides; ${a.landings.length} landings`

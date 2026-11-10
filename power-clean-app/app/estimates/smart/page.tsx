@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import ImageMeasurements from "./image-measurements";
 import { createClient } from "@/lib/supabase/client";
 import { POWER_CLEAN_LOGO } from "@/lib/branding";
 import {
@@ -389,6 +390,8 @@ export default function SmartEstimate() {
                         const kind = e.target.value as Area["kind"];
                         area(a.id, {
                           kind,
+                          confirmedSquareFeet: undefined,
+                          measurementSource: undefined,
                           material:
                             kind === "monument" ? "granite" : "concrete",
                           treatments: [
@@ -438,10 +441,15 @@ export default function SmartEstimate() {
                           : k
                       }
                       value={a[k as "length"]}
-                      onChange={(m) => area(a.id, { [k]: m })}
+                      onChange={(m) => area(a.id, { [k]: m, confirmedSquareFeet: undefined, measurementSource: undefined })}
                     />
                   ))}
                 </div>
+                {a.kind === "rectangle" && <>
+                  <ImageMeasurements onApply={m=>area(a.id,m.length&&m.width?{length:m.length,width:m.width,confirmedSquareFeet:undefined,measurementSource:m.text.slice(0,500)}:{confirmedSquareFeet:m.squareFeet,measurementSource:m.text.slice(0,500)})}/>
+                  {a.measurementSource&&<p>Confirmed image measurement: {a.measurementSource}</p>}
+                  {a.confirmedSquareFeet!==undefined&&<p>Using confirmed area: {a.confirmedSquareFeet.toFixed(2)} sq ft. <button type="button" onClick={()=>area(a.id,{confirmedSquareFeet:undefined,measurementSource:undefined})}>Use length × width instead</button></p>}
+                </>}
                 {a.kind === "stairs" && (
                   <>
                     <div className="smart-flex">
