@@ -10,6 +10,8 @@ export async function updateEstimateItem(input:Input){
  if(!user)return {error:'Sign in again.'};
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member||!['owner','admin','staff'].includes(member.role))return {error:'Permission denied.'};
+ const {data:smart}=await supabase.from('smart_estimate_drafts').select('id').eq('estimate_id',input.estimateId).maybeSingle();
+ if(smart)return {error:'Smart estimate snapshots are locked. Create a new smart estimate to revise pricing.'};
  const {data:estimate}=await supabase.from('estimates').select('id').is('deleted_at',null).eq('id',input.estimateId).eq('business_id',member.business_id).eq('status','draft').maybeSingle();
  if(!estimate)return {error:'Only draft estimates can be edited.'};
  const {data,error}=await supabase.from('estimate_items').update({description:input.description.trim(),pricing_mode:input.mode,square_feet:input.mode==='area'?input.squareFeet:null,rate:input.mode==='area'?input.rate:null,fixed_price:input.mode==='fixed'?input.fixedPrice:null}).eq('id',input.id).eq('estimate_id',estimate.id).select('id').maybeSingle();
@@ -25,6 +27,8 @@ async function draftAccess(estimateId:string){
  if(!user)return null;
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member||!['owner','admin','staff'].includes(member.role))return null;
+ const {data:smart}=await supabase.from('smart_estimate_drafts').select('id').eq('estimate_id',estimateId).maybeSingle();
+ if(smart)return null;
  const {data:estimate}=await supabase.from('estimates').select('id').is('deleted_at',null).eq('id',estimateId).eq('business_id',member.business_id).eq('status','draft').maybeSingle();
  return estimate?supabase:null;
 }

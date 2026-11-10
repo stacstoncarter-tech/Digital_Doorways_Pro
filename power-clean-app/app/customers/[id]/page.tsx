@@ -29,10 +29,11 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  const customerPhotos=photoResults.filter((photo):photo is {name:string;url:string}=>photo!==null);
  const addresses=addressesResult.data||[];
  const primaryAddress=addresses.find(a=>a.is_primary)||addresses[0];
+ const {data:smartDrafts}=await supabase.from('smart_estimate_drafts').select('id,name,estimate_id,updated_at').eq('customer_id',id).eq('business_id',member.business_id).order('updated_at',{ascending:false}).limit(50);
  const displayedAddress=primaryAddress?.address||customer.service_address||null;
  return <main className="workspace">
  <header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / CUSTOMERS</span><h1>{customer.name}</h1><p className="muted">Customer since {new Date(customer.created_at).toLocaleDateString('en-US')}</p></div><Link href="/customers">All customers</Link></header>
- <section className="panel"><h2>Customer details</h2><p>Email: {customer.email||'Not provided'}</p><p>Phone: {customer.phone||'Not provided'}</p><p><strong>Primary service address:</strong> {displayedAddress||'No address saved'}</p><Link href={'/agreements?customer='+encodeURIComponent(id)}>Create agreement</Link> · <Link href={'/estimates?customer='+encodeURIComponent(id)}>Create estimate</Link></section>
+ <section className="panel"><h2>Smart estimates & saved drafts</h2><Link href={"/estimates/smart?customer="+id}>Create smart estimate</Link>{smartDrafts?.map(d=><p key={d.id}><Link href={"/estimates/smart?draft="+d.id}>{d.name}</Link> · {d.estimate_id?"Finalized":"Draft"}{d.estimate_id&&<> · <Link href={"/estimates/view?id="+d.estimate_id}>View estimate</Link></>}</p>)}</section><section className="panel"><h2>Customer details</h2><p>Email: {customer.email||'Not provided'}</p><p>Phone: {customer.phone||'Not provided'}</p><p><strong>Primary service address:</strong> {displayedAddress||'No address saved'}</p><Link href={'/agreements?customer='+encodeURIComponent(id)}>Create agreement</Link> · <Link href={'/estimates?customer='+encodeURIComponent(id)}>Create estimate</Link></section>
  {['owner','admin','staff'].includes(member.role)&&<CustomerProfileEditor customer={customer}/>}
  <CustomerEditors customerId={id} canEdit={['owner','admin','staff'].includes(member.role)}/>
  {photoError&&<section className="panel"><p role="alert">Customer photos could not load: {photoError.message}</p></section>}

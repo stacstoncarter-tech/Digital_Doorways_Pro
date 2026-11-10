@@ -25,6 +25,8 @@ export default async function EstimateHistoryPage({searchParams}:{searchParams:P
  const propertyIds=[...new Set((estimates||[]).map(e=>e.service_address_id).filter((id):id is string=>!!id))];
  const {data:properties}=propertyIds.length?await supabase.from('customer_addresses').select('id,label,address').eq('business_id',membership.business_id).in('id',propertyIds):{data:[]};
  const propertyMap=new Map((properties||[]).map(p=>[p.id,p]));
+ const {data:smartDrafts}=await supabase.from('smart_estimate_drafts').select('id,estimate_id').eq('business_id',membership.business_id).not('estimate_id','is',null);
+ const smartMap=new Map((smartDrafts||[]).map(s=>[s.estimate_id,s.id]));
  const canDelete=['owner','admin'].includes(membership.role);
  return <main className="workspace">
   <header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / OPERATIONS</span><h1>Saved estimates</h1><p className="muted">Your 100 most recent estimates</p></div><div><Link href="/estimates">New estimate</Link> · <Link href="/jobs">Jobs & Scheduling</Link></div></header>{canDelete&&<p><Link href="/trash">Trash · restore deleted records</Link></p>}
@@ -41,8 +43,8 @@ export default async function EstimateHistoryPage({searchParams}:{searchParams:P
    return <section className="panel" key={e.id}><div className="section-heading"><div><h2>{customer?.name||'Customer'}</h2><p className="muted">{new Date(e.created_at).toLocaleDateString('en-US')} · {e.status} · {items.length} service(s)</p></div><strong>{currency(total)}</strong></div>
     {e.service_address_id&&propertyMap.get(e.service_address_id)&&<p className="muted">Property: {propertyMap.get(e.service_address_id)?.label} — {propertyMap.get(e.service_address_id)?.address}</p>}
     <ul>{items.map(item=><li key={item.id}>{item.description}: {currency(item.pricing_mode==='area'?Number(item.square_feet||0)*Number(item.rate||0):Number(item.fixed_price||0))}</li>)}</ul>
-    {e.status==='draft'&&<><ServiceControls estimateId={e.id}/>{items.map(item=><div key={item.id}><ServiceEditor estimateId={e.id} item={item}/><ServiceControls estimateId={e.id} itemId={item.id}/></div>)}</>}{e.notes&&<p className="muted">{e.notes}</p>}
-    <EstimateStatus id={e.id} initial={e.status}/>{['draft','sent'].includes(e.status)&&<EstimateApprovalLink id={e.id}/>}{e.status==='accepted'&&<CreateJobButton estimateId={e.id}/>}{e.status==='draft'&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link></p><small>Estimate ID: {e.id}</small>{canDelete&&<DeleteRecord kind="estimate" id={e.id} label={customer?.name||e.id}/>}
+    {e.status==='draft'&&!smartMap.has(e.id)&&<><ServiceControls estimateId={e.id}/>{items.map(item=><div key={item.id}><ServiceEditor estimateId={e.id} item={item}/><ServiceControls estimateId={e.id} itemId={item.id}/></div>)}</>}{e.notes&&<p className="muted">{e.notes}</p>}
+    <EstimateStatus id={e.id} initial={e.status}/>{['draft','sent'].includes(e.status)&&<EstimateApprovalLink id={e.id}/>}{e.status==='accepted'&&<CreateJobButton estimateId={e.id}/>}{e.status==='draft'&&!smartMap.has(e.id)&&<DraftEditor id={e.id} notes={e.notes||''} discount={Number(e.discount||0)} taxRate={Number(e.tax_rate||0)}/>} <p><Link href={`/estimates/view?id=${e.id}`}>Open estimate</Link>{smartMap.has(e.id)&&<> · <Link href={'/estimates/smart?draft='+smartMap.get(e.id)}>Calculation snapshot</Link> · <Link href={'/estimates/smart/pdf?id='+smartMap.get(e.id)}>Download PDF</Link></>}</p><small>Estimate ID: {e.id}</small>{canDelete&&<DeleteRecord kind="estimate" id={e.id} label={customer?.name||e.id}/>}
    </section>;
   })}
  </main>;
