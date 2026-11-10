@@ -10,10 +10,10 @@ export default async function CustomerTimeline({params}:{params:Promise<{id:stri
  const {data:customer}=await supabase.from('customers').select('id,name').eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!customer)notFound();
  const [{data:activity},{data:jobs},{data:estimates},{data:invoices},{data:agreements}]=await Promise.all([
  supabase.from('customer_activity').select('id,activity_type,summary,occurred_at').eq('customer_id',id).eq('business_id',member.business_id).order('occurred_at',{ascending:false}).limit(200),
- supabase.from('jobs').select('id,status,scheduled_start,created_at').eq('customer_id',id).eq('business_id',member.business_id).limit(200),
- supabase.from('estimates').select('id,status,created_at').eq('customer_id',id).eq('business_id',member.business_id).limit(200),
- supabase.from('invoices').select('id,invoice_number,status,total,created_at').eq('customer_id',id).eq('business_id',member.business_id).limit(200),
- supabase.from('customer_agreements').select('id,title,status,created_at').eq('customer_id',id).eq('business_id',member.business_id).limit(200)
+ supabase.from('jobs').select('id,status,scheduled_start,created_at').is('deleted_at',null).eq('customer_id',id).eq('business_id',member.business_id).limit(200),
+ supabase.from('estimates').select('id,status,created_at').is('deleted_at',null).eq('customer_id',id).eq('business_id',member.business_id).limit(200),
+ supabase.from('invoices').select('id,invoice_number,status,total,created_at').is('deleted_at',null).eq('customer_id',id).eq('business_id',member.business_id).limit(200),
+ supabase.from('customer_agreements').select('id,title,status,created_at').is('deleted_at',null).eq('customer_id',id).eq('business_id',member.business_id).limit(200)
  ]);
  const events=[
  ...(activity||[]).map(x=>({id:'a'+x.id,date:x.occurred_at,label:x.activity_type.replace('_',' '),description:x.summary})),

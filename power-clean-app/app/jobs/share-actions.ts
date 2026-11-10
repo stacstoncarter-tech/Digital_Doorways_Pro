@@ -6,7 +6,7 @@ export async function prepareCustomerShare(jobId:string,includePhotos:boolean){
  if(!user)return {error:'Sign in again.'};
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member||!['owner','admin','staff'].includes(member.role))return {error:'Access denied.'};
- const {data:job}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,scheduled_end,notes,service_address_id').eq('id',jobId).eq('business_id',member.business_id).maybeSingle();
+ const {data:job}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,scheduled_end,notes,service_address_id').is('deleted_at',null).eq('id',jobId).eq('business_id',member.business_id).maybeSingle();
  if(!job||!job.scheduled_start||!['scheduled','in_progress','completed'].includes(job.status))return {error:'Save a scheduled appointment first.'};
  const {data:customer}=await supabase.from('customers').select('name,email,phone,service_address').eq('id',job.customer_id).eq('business_id',member.business_id).maybeSingle();
  if(!customer)return {error:'Customer not found.'};

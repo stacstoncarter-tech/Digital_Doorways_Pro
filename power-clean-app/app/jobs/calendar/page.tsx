@@ -10,7 +10,7 @@ export default async function CalendarPage({searchParams}:{searchParams:Promise<
  const localDay=(date:string)=>Number(new Intl.DateTimeFormat('en-US',{timeZone:zone,day:'2-digit'}).format(new Date(date)));
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)return <main className="workspace"><h1>Access pending</h1></main>;
- const {data:jobs,error}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,scheduled_end').eq('business_id',member.business_id).gte('scheduled_start',new Date(Date.UTC(year,month-1,1)-6*3600000).toISOString()).lt('scheduled_start',new Date(Date.UTC(year,month,1)+6*3600000).toISOString()).order('scheduled_start').limit(500);
+ const {data:jobs,error}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,scheduled_end').is('deleted_at',null).eq('business_id',member.business_id).gte('scheduled_start',new Date(Date.UTC(year,month-1,1)-6*3600000).toISOString()).lt('scheduled_start',new Date(Date.UTC(year,month,1)+6*3600000).toISOString()).order('scheduled_start').limit(500);
  const ids=[...new Set((jobs||[]).map(j=>j.customer_id))];
  const {data:customers}=ids.length?await supabase.from('customers').select('id,name').eq('business_id',member.business_id).in('id',ids):{data:[]};
  const names=new Map((customers||[]).map(c=>[c.id,c.name]));

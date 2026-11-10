@@ -13,9 +13,9 @@ export default async function ReportsPage({searchParams}:{searchParams:Promise<{
  const [{data:payments,error:payError},{data:expenses,error:expenseError},{data:jobs,error:jobError},{data:leads,error:leadError},{data:invoices,error:invoiceError}]=await Promise.all([
  supabase.from('invoice_payments').select('amount,received_at').eq('business_id',business).gte('received_at',from+'T00:00:00').lt('received_at',to+'T23:59:59.999').limit(1000),
  supabase.from('business_expenses').select('amount,category,incurred_at').eq('business_id',business).gte('incurred_at',from).lte('incurred_at',to).limit(1000),
- supabase.from('jobs').select('status,completed_at,created_at').eq('business_id',business).limit(1000),
- supabase.from('sales_leads').select('status,source,created_at').eq('business_id',business).gte('created_at',from+'T00:00:00').lt('created_at',to+'T23:59:59.999').limit(1000),
- supabase.from('invoices').select('total,status,created_at').eq('business_id',business).limit(1000)
+ supabase.from('jobs').select('status,completed_at,created_at').is('deleted_at',null).eq('business_id',business).limit(1000),
+ supabase.from('sales_leads').select('status,source,created_at').is('deleted_at',null).eq('business_id',business).gte('created_at',from+'T00:00:00').lt('created_at',to+'T23:59:59.999').limit(1000),
+ supabase.from('invoices').select('total,status,created_at').is('deleted_at',null).eq('business_id',business).limit(1000)
  ]);
  const received=(payments||[]).reduce((s,p)=>s+Number(p.amount),0),spent=(expenses||[]).reduce((s,e)=>s+Number(e.amount),0);
  const completed=(jobs||[]).filter(j=>j.status==='completed'&&j.completed_at&&j.completed_at.slice(0,10)>=from&&j.completed_at.slice(0,10)<=to).length;

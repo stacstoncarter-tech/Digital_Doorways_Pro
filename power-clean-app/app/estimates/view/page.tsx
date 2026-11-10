@@ -9,7 +9,7 @@ export default async function EstimateView({searchParams}:{searchParams:Promise<
  if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)redirect('/customers');
- const {data:estimate}=await supabase.from('estimates').select('id,status,notes,discount,tax_rate,service_address_id,customers(name),estimate_items(id,description,pricing_mode,square_feet,rate,fixed_price,length_ft,width_ft,show_dimensions_customer)').eq('id',id||'00000000-0000-0000-0000-000000000000').eq('business_id',member.business_id).maybeSingle();
+ const {data:estimate}=await supabase.from('estimates').select('id,status,notes,discount,tax_rate,service_address_id,customers(name),estimate_items(id,description,pricing_mode,square_feet,rate,fixed_price,length_ft,width_ft,show_dimensions_customer)').is('deleted_at',null).eq('id',id||'00000000-0000-0000-0000-000000000000').eq('business_id',member.business_id).maybeSingle();
  if(!estimate)return <main className="workspace"><h1>Estimate not found</h1><Link href="/estimates/history">Back to estimates</Link></main>;
  const {data:property}=estimate.service_address_id?await supabase.from('customer_addresses').select('label,address').eq('id',estimate.service_address_id).eq('business_id',member.business_id).maybeSingle():{data:null};
  const customer=estimate.customers as unknown as {name:string}|null;

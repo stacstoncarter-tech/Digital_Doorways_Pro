@@ -9,7 +9,7 @@ export default async function InvoiceDetail({params}:{params:Promise<{id:string}
  const {id}=await params;if(!/^[0-9a-f-]{36}$/i.test(id))notFound();
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)notFound();
- const {data:invoice}=await supabase.from('invoices').select('id,invoice_number,customer_id,job_id,status,subtotal,discount,tax_rate,total,due_at,notes,created_at,invoice_items(description,quantity,unit_price,position),invoice_payments(amount,method,reference,received_at)').eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!invoice)notFound();
+ const {data:invoice}=await supabase.from('invoices').select('id,invoice_number,customer_id,job_id,status,subtotal,discount,tax_rate,total,due_at,notes,created_at,invoice_items(description,quantity,unit_price,position),invoice_payments(amount,method,reference,received_at)').is('deleted_at',null).eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!invoice)notFound();
  const {data:customer}=await supabase.from('customers').select('name,email,phone').eq('id',invoice.customer_id).eq('business_id',member.business_id).maybeSingle();
  const paid=(invoice.invoice_payments||[]).reduce((s,p)=>s+Number(p.amount),0),balance=Math.max(0,Number(invoice.total)-paid);
  const items=[...(invoice.invoice_items||[])].sort((a,b)=>a.position-b.position);

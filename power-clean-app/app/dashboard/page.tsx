@@ -9,9 +9,9 @@ export default async function Dashboard(){
  const business=member.business_id;
  const [{count:customers},{data:jobs},{data:invoices},{data:estimates}]=await Promise.all([
  supabase.from('customers').select('id',{count:'exact',head:true}).eq('business_id',business),
- supabase.from('jobs').select('id,status,scheduled_start,customer_id').eq('business_id',business).limit(1000),
- supabase.from('invoices').select('id,status,total,invoice_payments(amount)').eq('business_id',business).limit(1000),
- supabase.from('estimates').select('id,status').eq('business_id',business).limit(1000)
+ supabase.from('jobs').select('id,status,scheduled_start,customer_id').is('deleted_at',null).eq('business_id',business).limit(1000),
+ supabase.from('invoices').select('id,status,total,invoice_payments(amount)').is('deleted_at',null).eq('business_id',business).limit(1000),
+ supabase.from('estimates').select('id,status').is('deleted_at',null).eq('business_id',business).limit(1000)
  ]);
  const active=(jobs||[]).filter(j=>['scheduled','in_progress'].includes(j.status));
  const today=new Date(),upcoming=active.filter(j=>j.scheduled_start&&new Date(j.scheduled_start)>=today).sort((a,b)=>String(a.scheduled_start).localeCompare(String(b.scheduled_start))).slice(0,8);
