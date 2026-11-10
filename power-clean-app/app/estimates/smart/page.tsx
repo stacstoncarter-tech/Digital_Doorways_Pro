@@ -9,6 +9,10 @@ import {
   defaults,
   newArea,
   MATERIALS,
+  STAIR_MATERIALS,
+  EXTERIOR_KINDS,
+  MATERIAL_LABELS,
+  isElevation,
   STONES,
   TREATMENTS,
   geometry,
@@ -406,6 +410,7 @@ export default function SmartEstimate() {
                       }}
                     >
                       <option value="rectangle">Surface / rectangle</option>
+                      {Object.entries(EXTERIOR_KINDS).map(([value,label])=><option key={value} value={value}>{label}</option>)}
                       <option value="stairs">Stairs</option>
                       <option value="monument">Monument / memorial</option>
                     </select>
@@ -416,15 +421,17 @@ export default function SmartEstimate() {
                       value={a.material}
                       onChange={(e) => area(a.id, { material: e.target.value })}
                     >
-                      {(a.kind === "monument" ? STONES : MATERIALS).map((m) => (
-                        <option key={m}>{m}</option>
+                      {(a.kind === "monument" ? STONES : a.kind === "stairs" ? STAIR_MATERIALS : MATERIALS).map((m) => (
+                        <option key={m} value={m}>{MATERIAL_LABELS[m]||m}</option>
                       ))}
                     </select>
                   </label>
                 </div>
                 <div className="smart-grid" style={{ marginTop: 14 }}>
-                  {(a.kind === "rectangle"
+                  {(a.kind === "rectangle" || a.kind === "fascia" || a.kind === "soffit"
                     ? ["length", "width"]
+                    : isElevation(a.kind) ? ["length","height"]
+                    : a.kind === "gable" ? ["length","height","depth"]
                     : a.kind === "stairs"
                       ? ["width", "depth", "height"]
                       : ["width", "height", "depth"]
@@ -432,7 +439,10 @@ export default function SmartEstimate() {
                     <Feet
                       key={k}
                       label={
-                        a.kind === "stairs"
+                        isElevation(a.kind) ? k === "length" ? "Wall width" : "Wall height"
+                        : a.kind === "gable" ? k === "length" ? "Wall / gable base width" : k === "height" ? "Rectangular wall height to eave (0 for triangle only)" : "Triangular rise above eave"
+                        : a.kind === "fascia" || a.kind === "soffit" ? k === "length" ? "Total run length" : a.kind === "fascia" ? "Fascia face height" : "Soffit projection depth"
+                        : a.kind === "stairs"
                           ? k === "depth"
                             ? "Tread depth"
                             : k === "height"
@@ -445,6 +455,7 @@ export default function SmartEstimate() {
                     />
                   ))}
                 </div>
+                {a.kind in EXTERIOR_KINDS && <p>{a.kind === "gable" ? "Area = rectangular wall + half × base width × triangular rise. The rise is above the eave, not total roof height." : a.kind === "fascia" ? "Measure the visible vertical fascia face: total run × face height." : a.kind === "soffit" ? "Measure the underside of the overhang: total run × projection depth." : "Measure each wall separately as width × height. Left and right are viewed from the front."} Add separate areas for different materials or sections; do not count the same surface twice.</p>}
                 {a.kind === "rectangle" && <>
                   <ImageMeasurements onApply={m=>area(a.id,m.length&&m.width?{length:m.length,width:m.width,confirmedSquareFeet:undefined,measurementSource:m.text.slice(0,500)}:{confirmedSquareFeet:m.squareFeet,measurementSource:m.text.slice(0,500)})}/>
                   {a.measurementSource&&<p>Confirmed image measurement: {a.measurementSource}</p>}
@@ -868,7 +879,7 @@ export default function SmartEstimate() {
                   <NumberField
                     key={m}
                     label={m + " applied SH % (0 = not approved)"}
-                    value={c.targetSH[m]}
+                    value={c.targetSH[m] ?? 0}
                     onChange={(n) =>
                       config({ targetSH: { ...c.targetSH, [m]: n ?? 0 } })
                     }
