@@ -20,12 +20,12 @@ export async function prepareAgreementBundle(customerId:string,testMode=false,ca
   if(!first.token)return {error:'Test Service Agreement: '+(first.error||'Signing link failed')};
   const second=await prepareSigningLink(ids[1]);
   if(!second.token){
-   const {data:resetRow,error:resetError}=await supabase.from('customer_agreements').update({status:'draft',signing_token_hash:null,signing_expires_at:null,contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,contractor_authorized_by:null,contractor_signature_image_data:null}).eq('id',ids[0]).eq('business_id',member.business_id).eq('status','sent').select('id').maybeSingle();
+   const {data:resetRow,error:resetError}=await supabase.from('customer_agreements').update({status:'draft',signing_token_hash:null,signing_expires_at:null,contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,contractor_authorized_by:null,contractor_signature_image_data:null}).is('deleted_at',null).eq('id',ids[0]).eq('business_id',member.business_id).eq('status','sent').select('id').maybeSingle();
    return {error:resetError||!resetRow?'Test bundle failed and the first link reset could not be verified. Do not share links: '+(resetError?.message||'No row was reset'):'Test bundle failed; first link revoked: '+(second.error||'Signing link failed')};
   }
   return {serviceToken:first.token,liabilityToken:second.token};
  }
- const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title,body').eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
+ const {data:docs,error}=await supabase.from('customer_agreements').select('id,document_type,status,title,body').is('deleted_at',null).eq('business_id',member.business_id).eq('customer_id',customerId).eq('status','draft').order('created_at',{ascending:false});
  if(error)return {error:'Could not load customer agreements: '+error.message};
  const matchesMaster=(body:string,template:string)=>body.startsWith(template.slice(0,75));
  let service=docs?.find(d=>d.document_type==='service_contract'&&matchesMaster(d.body,SERVICE_TEMPLATE));
@@ -55,7 +55,7 @@ export async function prepareAgreementBundle(customerId:string,testMode=false,ca
    status:'draft',signing_token_hash:null,signing_expires_at:null,
    contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,
    contractor_authorized_by:null,contractor_signature_image_data:null
-  }).eq('id',service.id).eq('business_id',member.business_id).eq('status','sent').select('id').maybeSingle();
+  }).is('deleted_at',null).eq('id',service.id).eq('business_id',member.business_id).eq('status','sent').select('id').maybeSingle();
   if(rollbackError||!rollbackRow)return {error:'The second agreement failed and the first reset could not be verified. Do not share any links. Contact the administrator: '+(rollbackError?.message||'No row was reset')};
   return {error:'Neither agreement link was issued. The second document failed validation: '+(second.error||'Could not prepare signing link.')};
  }
@@ -86,9 +86,9 @@ export async function testRollbackSafeguard(customerId:string){
   status:'draft',signing_token_hash:null,signing_expires_at:null,
   contractor_signer_name:null,contractor_signer_title:null,contractor_signed_at:null,
   contractor_authorized_by:null,contractor_signature_image_data:null
- }).eq('id',created.id).eq('business_id',member.business_id).eq('status','sent').select('id,status,signing_token_hash,signing_expires_at').maybeSingle();
+ }).is('deleted_at',null).eq('id',created.id).eq('business_id',member.business_id).eq('status','sent').select('id,status,signing_token_hash,signing_expires_at').maybeSingle();
  if(resetError||!reset)return {passed:false,error:'Rollback failed or did not update a row: '+(resetError?.message||'No matching row'),testAgreementId:created.id};
- const {data:readBack,error:readError}=await supabase.from('customer_agreements').select('status,signing_token_hash,signing_expires_at').eq('id',created.id).eq('business_id',member.business_id).single();
+ const {data:readBack,error:readError}=await supabase.from('customer_agreements').select('status,signing_token_hash,signing_expires_at').is('deleted_at',null).eq('id',created.id).eq('business_id',member.business_id).single();
  const {data:publicRead,error:publicError}=await supabase.rpc('read_agreement_for_signing',{p_token:first.token});
  const accessible=Array.isArray(publicRead)&&publicRead.length>0;
  const revoked=!readError&&readBack?.status==='draft'&&readBack.signing_token_hash===null&&readBack.signing_expires_at===null;

@@ -2,7 +2,7 @@
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
 type State={error:string;success:string};
-async function context(jobId:string){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user||!/^[0-9a-f-]{36}$/i.test(jobId))return null;const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();if(!member||!['owner','admin','staff'].includes(member.role))return null;const {data:job}=await supabase.from('jobs').select('id').eq('id',jobId).eq('business_id',member.business_id).maybeSingle();if(!job)return null;return {supabase,user,member};}
+async function context(jobId:string){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user||!/^[0-9a-f-]{36}$/i.test(jobId))return null;const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();if(!member||!['owner','admin','staff'].includes(member.role))return null;const {data:job}=await supabase.from('jobs').select('id').is('deleted_at',null).eq('id',jobId).eq('business_id',member.business_id).maybeSingle();if(!job)return null;return {supabase,user,member};}
 export async function addChecklistItem(_state:State,f:FormData):Promise<State>{
  const jobId=String(f.get('job_id')||''),title=String(f.get('title')||'').trim();const ctx=await context(jobId);
  if(!ctx)return {error:'Access denied.',success:''};if(!title||title.length>200)return {error:'Enter a checklist item.',success:''};

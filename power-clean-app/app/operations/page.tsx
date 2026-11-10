@@ -11,11 +11,11 @@ export default async function OperationsPage(){
  if(!member)return <main className="workspace"><h1>Access pending</h1></main>;
  const bid=member.business_id;
  const [leads,estimates,jobs,invoices,agreements]=await Promise.all([
-  supabase.from('sales_leads').select('id,status,name,follow_up_at').eq('business_id',bid).limit(500),
-  supabase.from('estimates').select('id,status,customer_id,customers(name)').eq('business_id',bid).limit(500),
-  supabase.from('jobs').select('id,status,customer_id,estimate_id,scheduled_start').eq('business_id',bid).limit(500),
-  supabase.from('invoices').select('id,status,job_id,total,invoice_payments(amount)').eq('business_id',bid).limit(500),
-  supabase.from('customer_agreements').select('id,customer_id,status,document_type').eq('business_id',bid).limit(500)
+  supabase.from('sales_leads').select('id,status,name,follow_up_at').is('deleted_at',null).eq('business_id',bid).limit(500),
+  supabase.from('estimates').select('id,status,customer_id,customers(name)').is('deleted_at',null).eq('business_id',bid).limit(500),
+  supabase.from('jobs').select('id,status,customer_id,estimate_id,scheduled_start').is('deleted_at',null).eq('business_id',bid).limit(500),
+  supabase.from('invoices').select('id,status,job_id,total,invoice_payments(amount)').is('deleted_at',null).eq('business_id',bid).limit(500),
+  supabase.from('customer_agreements').select('id,customer_id,status,document_type').is('deleted_at',null).eq('business_id',bid).limit(500)
  ]);
  const errors=[leads,estimates,jobs,invoices,agreements].filter(r=>r.error).length;
  const j=jobs.data||[], e=estimates.data||[], i=invoices.data||[], a=agreements.data||[],l=leads.data||[];

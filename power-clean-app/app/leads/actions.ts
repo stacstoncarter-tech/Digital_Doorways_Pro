@@ -15,6 +15,6 @@ export async function updateLead(_s:State,f:FormData):Promise<State>{
  const ctx=await context();if(!ctx)return {error:'Access denied.',success:''};
  const id=val(f,'id',40),status=val(f,'status',30),notes=val(f,'notes',3000),follow=val(f,'follow_up_at',40);
  if(!/^[0-9a-f-]{36}$/i.test(id)||!['new','contacted','estimate_needed','estimate_sent','won','lost'].includes(status)||(follow&&!Number.isFinite(Date.parse(follow))))return {error:'Check lead update.',success:''};
- const {error}=await ctx.supabase.from('sales_leads').update({status,notes,follow_up_at:follow?new Date(follow).toISOString():null,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
+ const {error}=await ctx.supabase.from('sales_leads').update({status,notes,follow_up_at:follow?new Date(follow).toISOString():null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update lead.',success:''};revalidatePath('/leads');return {error:'',success:'Lead updated.'};
 }

@@ -10,7 +10,7 @@ export default async function JobDetail({params}:{params:Promise<{id:string}>}){
  const {id}=await params;if(!/^[0-9a-f-]{36}$/i.test(id))notFound();
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)notFound();
- const {data:job}=await supabase.from('jobs').select('id,status,customer_id,scheduled_start,scheduled_end,notes,estimate_id').eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!job)notFound();
+ const {data:job}=await supabase.from('jobs').select('id,status,customer_id,scheduled_start,scheduled_end,notes,estimate_id').is('deleted_at',null).eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!job)notFound();
  const [{data:items},{data:photos},{data:customer}]=await Promise.all([
  supabase.from('job_checklist_items').select('id,title,is_complete').eq('job_id',id).eq('business_id',member.business_id).order('created_at',{ascending:true}),
  supabase.from('job_photos').select('id,phase,caption,storage_path,created_at').eq('job_id',id).eq('business_id',member.business_id).order('created_at',{ascending:false}),

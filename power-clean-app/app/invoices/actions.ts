@@ -6,11 +6,11 @@ async function context(){const supabase=await createClient();const {data:{user}}
 export async function invoiceCompletedJob(jobId:string):Promise<Result>{
  const ctx=await context();if(!ctx)return {error:'Access denied.'};
  if(!/^[0-9a-f-]{36}$/i.test(jobId))return {error:'Invalid job.'};
- const {data:job}=await ctx.supabase.from('jobs').select('id,customer_id,estimate_id,status').eq('id',jobId).eq('business_id',ctx.member.business_id).maybeSingle();
+ const {data:job}=await ctx.supabase.from('jobs').select('id,customer_id,estimate_id,status').is('deleted_at',null).eq('id',jobId).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!job||job.status!=='completed'||!job.estimate_id)return {error:'A completed job with an estimate is required.'};
- const {data:existingInvoice}=await ctx.supabase.from('invoices').select('id').eq('business_id',ctx.member.business_id).eq('job_id',job.id).limit(1).maybeSingle();
+ const {data:existingInvoice}=await ctx.supabase.from('invoices').select('id').is('deleted_at',null).eq('business_id',ctx.member.business_id).eq('job_id',job.id).limit(1).maybeSingle();
  if(existingInvoice)return {error:'An invoice already exists for this job.'};
- const {data:estimate}=await ctx.supabase.from('estimates').select('id,discount,tax_rate,estimate_items(description,pricing_mode,square_feet,rate,fixed_price,position)').eq('id',job.estimate_id).eq('business_id',ctx.member.business_id).maybeSingle();
+ const {data:estimate}=await ctx.supabase.from('estimates').select('id,discount,tax_rate,estimate_items(description,pricing_mode,square_feet,rate,fixed_price,position)').is('deleted_at',null).eq('id',job.estimate_id).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!estimate)return {error:'Estimate not found.'};
  const items=(estimate.estimate_items||[]).map(i=>({description:i.description,quantity:i.pricing_mode==='area'?Number(i.square_feet||0):1,unit_price:i.pricing_mode==='area'?Number(i.rate||0):Number(i.fixed_price||0),position:i.position})).filter(i=>i.quantity>0&&i.unit_price>=0);
  if(!items.length)return {error:'Estimate has no billable services.'};
@@ -25,9 +25,9 @@ export async function invoiceCompletedJob(jobId:string):Promise<Result>{
 export async function setInvoiceStatus(id:string,status:string):Promise<Result>{
  const ctx=await context();if(!ctx)return {error:'Access denied.'};
  if(!/^[0-9a-f-]{36}$/i.test(id)||!['draft','sent','void'].includes(status))return {error:'Invalid invoice update.'};
- const {data:invoice}=await ctx.supabase.from('invoices').select('id,status').eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
+ const {data:invoice}=await ctx.supabase.from('invoices').select('id,status').is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!invoice||['paid','partially_paid','void'].includes(invoice.status))return {error:'This invoice cannot be changed.'};
- const {error}=await ctx.supabase.from('invoices').update({status,updated_at:new Date().toISOString()}).eq('id',id).eq('business_id',ctx.member.business_id);
+ const {error}=await ctx.supabase.from('invoices').update({status,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update invoice.'};revalidatePath('/invoices');return {success:true};
 }
 export async function recordPayment(_state:{error:string;success:string},form:FormData){

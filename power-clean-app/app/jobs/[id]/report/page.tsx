@@ -8,7 +8,7 @@ export default async function PhotoReport({params}:{params:Promise<{id:string}>}
  const {id}=await params;if(!/^[0-9a-f-]{36}$/i.test(id))notFound();
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)notFound();
- const {data:job}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,completed_at,notes,service_address_id').eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!job)notFound();
+ const {data:job}=await supabase.from('jobs').select('id,customer_id,status,scheduled_start,completed_at,notes,service_address_id').is('deleted_at',null).eq('id',id).eq('business_id',member.business_id).maybeSingle();if(!job)notFound();
  const [{data:customer},{data:photos},{data:items}]=await Promise.all([
  supabase.from('customers').select('name,service_address,email,phone').eq('id',job.customer_id).eq('business_id',member.business_id).maybeSingle(),
  supabase.from('job_photos').select('id,phase,caption,storage_path,created_at').eq('job_id',id).eq('business_id',member.business_id).order('created_at',{ascending:true}).limit(100),

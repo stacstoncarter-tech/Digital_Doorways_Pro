@@ -9,7 +9,7 @@ export async function createEstimateApprovalLink(estimateId:string):Promise<{url
  if(!user)return {error:'Please sign in.'};
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member||!['owner','admin','staff'].includes(member.role))return {error:'Access denied.'};
- const {data:estimate}=await supabase.from('estimates').select('id,status').eq('id',estimateId).eq('business_id',member.business_id).maybeSingle();
+ const {data:estimate}=await supabase.from('estimates').select('id,status').is('deleted_at',null).eq('id',estimateId).eq('business_id',member.business_id).maybeSingle();
  if(!estimate||!['draft','sent'].includes(estimate.status))return {error:'Only pending estimates can be shared.'};
  const token=randomBytes(32).toString('hex');
  const token_hash=createHash('sha256').update(token).digest('hex');

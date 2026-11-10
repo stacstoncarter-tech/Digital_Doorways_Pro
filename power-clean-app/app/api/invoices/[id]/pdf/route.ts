@@ -4,7 +4,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
  const {id}=await params;if(!/^[0-9a-f-]{36}$/i.test(id))return new Response('Invalid invoice',{status:400});
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)return new Response('Sign in required',{status:401});
  const {data:member}=await supabase.from('business_members').select('business_id').eq('user_id',user.id).limit(1).maybeSingle();if(!member)return new Response('Forbidden',{status:403});
- const {data:invoice}=await supabase.from('invoices').select('id,invoice_number,customer_id,status,total,subtotal,discount,tax_rate,due_at,notes,invoice_items(description,quantity,unit_price),invoice_payments(amount)').eq('id',id).eq('business_id',member.business_id).maybeSingle();
+ const {data:invoice}=await supabase.from('invoices').select('id,invoice_number,customer_id,status,total,subtotal,discount,tax_rate,due_at,notes,invoice_items(description,quantity,unit_price),invoice_payments(amount)').is('deleted_at',null).eq('id',id).eq('business_id',member.business_id).maybeSingle();
  if(!invoice)return new Response('Invoice not found',{status:404});
  const {data:customer}=await supabase.from('customers').select('name,email').eq('id',invoice.customer_id).eq('business_id',member.business_id).maybeSingle();
  const money=(n:number)=>Number(n).toLocaleString('en-US',{style:'currency',currency:'USD'});

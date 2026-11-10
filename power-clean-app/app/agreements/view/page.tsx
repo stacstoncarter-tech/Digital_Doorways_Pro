@@ -11,7 +11,7 @@ export default async function AgreementView({searchParams}:{searchParams:Promise
  if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)redirect('/agreements');
- const {data:a}=await supabase.from('customer_agreements').select('id,title,body,status,signer_name,signed_at,marketing_photo_consent,signer_acknowledged,signed_document_sha256,signer_user_agent,contractor_signer_name,contractor_signer_title,contractor_signed_at,contractor_signature_image_data').eq('id',id||'00000000-0000-0000-0000-000000000000').eq('business_id',member.business_id).maybeSingle();
+ const {data:a}=await supabase.from('customer_agreements').select('id,title,body,status,signer_name,signed_at,marketing_photo_consent,signer_acknowledged,signed_document_sha256,signer_user_agent,contractor_signer_name,contractor_signer_title,contractor_signed_at,contractor_signature_image_data').is('deleted_at',null).eq('id',id||'00000000-0000-0000-0000-000000000000').eq('business_id',member.business_id).maybeSingle();
  const {data:audit}=a?await supabase.from('agreement_signature_events').select('event_type,signed_at,marketing_photo_consent,document_sha256').eq('agreement_id',a.id).maybeSingle():{data:null};
  if(!a)return <main className="workspace"><h1>Agreement not found</h1></main>;
  const fingerprintVerified=a.status==='signed'&&Boolean(a.signed_document_sha256)&&audit?.document_sha256===a.signed_document_sha256;
