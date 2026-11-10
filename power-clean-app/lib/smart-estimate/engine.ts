@@ -200,12 +200,12 @@ export function defaults(): Config {
         150,
         250,
       ),
-      rust: p(
+      rust: {...p(
         "Previously selected Amazon rust product — identification required",
         "",
         150,
         200,
-      ),
+      ),price:85},
       seal: p(
         "Super Seal Siloxane",
         "https://southeastsoftwash.com/products/super-seal-siloxane-concrete-sealer-water-based",
