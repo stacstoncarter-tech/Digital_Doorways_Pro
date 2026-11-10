@@ -175,6 +175,12 @@ export function geometry(a: Area) {
   };
   return { area: Object.values(parts).reduce((n, v) => n + v, 0), parts };
 }
+/** Complexity-adjusted labor rate. Base $30/h maps light/moderate/heavy to $25/$30/$35. */
+export function complexityLaborRate(baseRate: number, severity: number): number {
+  nonnegative(baseRate, "labor rate");
+  if (![1, 1.5, 2].includes(severity)) throw Error("Invalid severity");
+  return money(Math.max(0, baseRate + (severity - 1.5) * 10));
+}
 export function marginPrice(cost: number, margin: number) {
   nonnegative(cost, "cost");
   if (!Number.isFinite(margin) || margin < 0 || margin >= 100)
@@ -236,7 +242,7 @@ export function defaults(): Config {
         25,
       ),
     },
-    laborRate: null,
+    laborRate: 30,
     crew: 1,
     equipmentHourly: null,
     fuel: null,
@@ -556,7 +562,7 @@ export function calculate(draft: Draft) {
       const cost =
         chemicalCost +
         hours *
-          ((c.laborRate ?? 0) * c.crew +
+          (complexityLaborRate(c.laborRate ?? 30, t.severity) * c.crew +
             (c.equipmentHourly ?? 0) +
             (c.overheadHourly ?? 0));
       const dimensions =
