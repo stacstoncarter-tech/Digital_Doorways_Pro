@@ -10,6 +10,7 @@ import {
   parseDraft,
   TREATMENTS,
   MATERIALS,
+  STAIR_MATERIALS,
 } from "../lib/smart-estimate/engine.ts";
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 function fixture() {
@@ -178,7 +179,7 @@ test("incompatible materials and monument safety checks block unsafe work", () =
   assert.ok(calculate(d).errors.some((x) => x.includes("conservation")));
 });
 test("all eight stair material categories are available", () =>
-  assert.equal(MATERIALS.length, 8));
+  assert.equal(STAIR_MATERIALS.length, 8));
 test("memorial labor includes exposed area, dwell, detail, access and shared time", () => {
   const d = fixture(),
     a = d.areas[0];

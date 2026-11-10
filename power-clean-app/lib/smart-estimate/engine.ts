@@ -1,5 +1,5 @@
 /** Pure estimator. All defaults are editable planning assumptions, never label directions. */
-export const MATERIALS = [
+export const STAIR_MATERIALS = [
   "concrete",
   "brick",
   "pavers",
@@ -9,6 +9,14 @@ export const MATERIALS = [
   "tile",
   "metal",
 ] as const;
+export const MATERIALS = [...STAIR_MATERIALS, "vinyl-siding", "stucco", "fiber-cement", "stone-masonry"] as const;
+export const EXTERIOR_KINDS = {
+ "front-elevation":"Front elevation / facade", "rear-elevation":"Rear / back elevation",
+ "left-elevation":"Left elevation (viewed from front)", "right-elevation":"Right elevation (viewed from front)",
+ "gable":"Gable wall", "fascia":"Fascia", "soffit":"Soffit"
+} as const;
+export const MATERIAL_LABELS:Record<string,string>={"vinyl-siding":"Vinyl siding (PVC)",stucco:"Stucco", "fiber-cement":"Fiber cement (e.g. James Hardie)",brick:"Brick masonry","stone-masonry":"Stone masonry"};
+export const isElevation=(kind:string)=>["front-elevation","rear-elevation","left-elevation","right-elevation"].includes(kind);
 export const STONES = [
   "granite",
   "marble",
@@ -30,7 +38,7 @@ export type Measurement = { ft: number; inches: number };
 export type Area = {
   id: string;
   name: string;
-  kind: "rectangle" | "stairs" | "monument";
+  kind: "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
   material: string;
   confirmedSquareFeet?: number;
   measurementSource?: string;
@@ -133,6 +141,9 @@ export function geometry(a: Area) {
   if (a.confirmedSquareFeet !== undefined && (a.kind !== "rectangle" || !Number.isFinite(a.confirmedSquareFeet) || a.confirmedSquareFeet <= 0 || a.confirmedSquareFeet > 1e8)) throw Error("Invalid confirmed square footage.");
   if (a.measurementSource !== undefined && (typeof a.measurementSource !== "string" || a.measurementSource.length > 500)) throw Error("Invalid measurement source.");
   if (a.kind === "rectangle") {const area=a.confirmedSquareFeet ?? l*w;return { area, parts: { surface: area } };}
+  if (isElevation(a.kind)) return {area:l*h,parts:{wall:l*h}};
+  if (a.kind === "gable") return {area:l*h+l*d/2,parts:{wall:l*h,gable:l*d/2}};
+  if (a.kind === "fascia" || a.kind === "soffit") return {area:l*w,parts:{trim:l*w}};
   if (a.kind === "stairs") {
     if (
       !Number.isInteger(a.steps) ||
@@ -236,6 +247,7 @@ export function defaults(): Config {
     margin: 30,
     stockSH: 10,
     targetSH: {
+      "vinyl-siding":0,stucco:0,"fiber-cement":0,"stone-masonry":0,
       concrete: 2,
       brick: 1,
       pavers: 1,
@@ -250,6 +262,7 @@ export function defaults(): Config {
     wastePercent: 10,
     costsReviewed: false,
     materialFactors: {
+      "vinyl-siding":0,stucco:0,"fiber-cement":0,"stone-masonry":0,
       concrete: 1,
       brick: 0.8,
       pavers: 0.8,
@@ -551,6 +564,12 @@ export function calculate(draft: Draft) {
           ? `Confirmed area: ${a.confirmedSquareFeet} sq ft`
           : a.kind === "rectangle"
           ? `${a.length.ft} ft ${a.length.inches} in × ${a.width.ft} ft ${a.width.inches} in`
+          : isElevation(a.kind)
+            ? `Wall width ${a.length.ft} ft ${a.length.inches} in × wall height ${a.height.ft} ft ${a.height.inches} in`
+          : a.kind === "gable"
+            ? `Wall width ${a.length.ft} ft ${a.length.inches} in × eave height ${a.height.ft} ft ${a.height.inches} in + triangular gable rise ${a.depth.ft} ft ${a.depth.inches} in`
+          : a.kind === "fascia" || a.kind === "soffit"
+            ? `Run ${a.length.ft} ft ${a.length.inches} in × ${a.kind === "fascia" ? "face height" : "projection depth"} ${a.width.ft} ft ${a.width.inches} in`
           : a.kind === "stairs"
             ? `${a.steps} steps; ${a.width.ft} ft ${a.width.inches} in wide; treads ${a.depth.ft} ft ${a.depth.inches} in; risers ${a.height.ft} ft ${a.height.inches} in; ${a.sides} sides; ${a.landings.length} landings`
             : `${a.width.ft} ft ${a.width.inches} in × ${a.height.ft} ft ${a.height.inches} in × ${a.depth.ft} ft ${a.depth.inches} in; faces ${Object.entries(
@@ -561,7 +580,7 @@ export function calculate(draft: Draft) {
                 .join(", ")}`;
       rows.push({
         key: a.id + ":" + t.type,
-        description: `${a.name} — ${t.type} (${a.material})`,
+        description: `${a.name}${a.kind in EXTERIOR_KINDS ? " — "+EXTERIOR_KINDS[a.kind as keyof typeof EXTERIOR_KINDS] : ""} — ${t.type} (${MATERIAL_LABELS[a.material]||a.material})`,
         area: treated,
         hours,
         laborHours: hours * c.crew,
@@ -634,7 +653,9 @@ export function parseDraft(value: unknown): Draft {
     JSON.stringify(value).length > 200000
   )
     throw Error("Invalid or oversized draft.");
-  const d = value as Draft;
+  const original = value as Draft;
+  const d = structuredClone(original);
+  if(d.config){d.config.targetSH={"vinyl-siding":0,stucco:0,"fiber-cement":0,"stone-masonry":0,...d.config.targetSH};d.config.materialFactors={"vinyl-siding":0,stucco:0,"fiber-cement":0,"stone-masonry":0,...d.config.materialFactors};}
   if (
     typeof d.customerId !== "string" ||
     typeof d.serviceAddressId !== "string" ||
