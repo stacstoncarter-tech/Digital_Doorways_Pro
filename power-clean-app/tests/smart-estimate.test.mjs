@@ -112,10 +112,11 @@ test("specialty dilution, affected area, severity, coats and landed shipping", (
   });
   const row = calculate(d).rows[0];
   close(row.area, 150);
-  close(row.solutionGal, 4);
-  close(row.concentrateGal, 1);
-  close(row.waterGal, 3);
-  close(row.chemicalCost, 50);
+  assert.equal(row.passes, 3);
+  close(row.solutionGal, 6);
+  close(row.concentrateGal, 1.5);
+  close(row.waterGal, 4.5);
+  close(row.chemicalCost, 75);
 });
 test("30 percent margin differs from 30 percent markup", () => {
   close(marginPrice(70, 30), 100);
