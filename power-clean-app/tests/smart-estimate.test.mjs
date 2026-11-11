@@ -286,3 +286,14 @@ test("complexity labor rate uses editable $30 baseline and severity", () => {
   assert.equal(complexityLaborRate(32, 2), 37);
   assert.throws(() => complexityLaborRate(30, 3));
 });
+
+test("severity pass counts and summary quantities agree with line items", () => {
+  const d = fixture();
+  for (const [severity, expectedPasses] of [[1, 1], [1.5, 2], [2, 3]]) {
+    d.areas[0].treatments[0].severity = severity;
+    const r = calculate(d);
+    assert.equal(r.rows[0].passes, expectedPasses);
+    close(r.totalSolutionGal, r.rows.reduce((sum, row) => sum + row.solutionGal, 0));
+    close(r.chemicalCost, r.rows.reduce((sum, row) => sum + row.chemicalCost, 0));
+  }
+});
