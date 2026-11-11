@@ -952,7 +952,7 @@ export default function SmartEstimate() {
               ))}
             </div>
             <p>
-              Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
+              Labor uses the editable base rate: at $30/hour, light work is $25/hour, moderate is $30/hour, and heavy is $35/hour. Severity also estimates 1, 2, or 3 application passes respectively; verify actual passes and product coats against the job and label before approval. Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
               markup. Shared costs and the job minimum apply once. No discounts
               are applied that could silently reduce your target margin.
             </p>
