@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageMeasurements from "./image-measurements";
+import { defaultGrowthPlan, growthProjection } from "@/lib/smart-estimate/growth";
 import { createClient } from "@/lib/supabase/client";
 import { POWER_CLEAN_LOGO } from "@/lib/branding";
 import {
@@ -102,7 +103,8 @@ const initial = (): Draft => ({
   config: defaults(),
 });
 export default function SmartEstimate() {
-  const [draft, setDraft] = useState<Draft | null>(null),
+  const [growth, setGrowth] = useState(defaultGrowthPlan),
+    [draft, setDraft] = useState<Draft | null>(null),
     [draftId, setDraftId] = useState(""),
     [savedEstimate, setSavedEstimate] = useState(""),
     [busy, setBusy] = useState(false),
@@ -1065,6 +1067,28 @@ export default function SmartEstimate() {
               </details>
             </>
           )}
+          {r && (() => {
+            const g = growthProjection(growth, r.total);
+            const edit = (key: keyof typeof growth, value: number) => setGrowth((old) => ({ ...old, [key]: value }));
+            return (
+              <details className="smart-growth" open>
+                <summary>Business Growth Planner — internal only</summary>
+                <p>Planning scenario, not a customer quote adjustment. The $483/job target in your plan assumes 12 jobs/month, $64/job operating costs, and a 25% modeled tax reserve. Actual operating costs and taxes may differ.</p>
+                <div className="smart-flex">
+                  <NumberField label="Paid jobs per month" value={growth.jobsPerMonth} min={1} onChange={(v) => edit("jobsPerMonth", Math.max(1, v ?? 1))} />
+                  <NumberField label="Modeled operating cost per job ($)" value={growth.operatingCostPerJob} onChange={(v) => edit("operatingCostPerJob", v ?? 0)} />
+                  <NumberField label="Owner take-home after tax / month ($)" value={growth.takeHomeAfterTax} onChange={(v) => edit("takeHomeAfterTax", v ?? 0)} />
+                  <NumberField label="Equipment savings / month ($)" value={growth.equipmentMonthly} onChange={(v) => edit("equipmentMonthly", v ?? 0)} />
+                  <NumberField label="Truck savings / month ($)" value={growth.truckMonthly} onChange={(v) => edit("truckMonthly", v ?? 0)} />
+                  <NumberField label="Repair savings / month ($)" value={growth.repairsMonthly} onChange={(v) => edit("repairsMonthly", v ?? 0)} />
+                  <NumberField label="Tax reserve (%)" value={growth.taxRate * 100} max={95} onChange={(v) => edit("taxRate", Math.max(0, Math.min(0.95, (v ?? 0) / 100)))} />
+                </div>
+                <p><strong>Required average sale: {usd(g.targetPerJob)} per job</strong> · Monthly revenue target: {usd(g.targetMonthlyRevenue)}</p>
+                <p>At this estimate's price ({usd(r.total)}), modeled monthly revenue: {usd(g.monthlyRevenue)} · Cash available for owner after modeled costs, taxes and growth transfers: {usd(g.availableTakeHome)} · Revenue shortfall: {usd(g.monthlyShortfall)}</p>
+                <p>Equipment and repair allowances already inside operating costs must not be added a second time. These goals are planning targets only; they do not override the estimate's minimum or operating-margin formula. This scenario uses the entered monthly job count and assumes every job sells at this estimate's price.</p>
+              </details>
+            );
+          })()}
           <div className="smart-flex">
             <button
               type="button"
