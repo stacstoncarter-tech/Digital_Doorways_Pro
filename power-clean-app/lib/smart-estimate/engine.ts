@@ -210,7 +210,7 @@ export function defaults(): Config {
   });
   return {
     products: {
-      organic: p("Sodium hypochlorite", "", 200, 600),
+      organic: { ...p("Sodium hypochlorite", "", 200, 600), price: 15 },
       clay: p(
         "Mud May-Day",
         "https://southeastsoftwash.com/products/mud-may-day-stain-remover",
@@ -244,9 +244,9 @@ export function defaults(): Config {
     },
     laborRate: 30,
     crew: 1,
-    equipmentHourly: null,
-    fuel: null,
-    overheadHourly: null,
+    equipmentHourly: 8,
+    fuel: 15,
+    overheadHourly: 9.25,
     setupMinutes: 30,
     travelMinutes: 30,
     minimum: 150,
@@ -264,7 +264,7 @@ export function defaults(): Config {
       metal: 0,
     },
     surfactantOzPerGal: 0,
-    surfactantPrice: null,
+    surfactantPrice: 35,
     wastePercent: 10,
     costsReviewed: false,
     materialFactors: {
