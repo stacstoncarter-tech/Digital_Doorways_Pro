@@ -1,6 +1,6 @@
 # Power Clean Smart Estimate System
 
-Feature branch: `feature/power-clean-smart-estimates`; base: `power-clean-app-foundation`.
+Current release candidate: `feature/smart-estimate-automatic-costing` (PR #8); base: `power-clean-app-foundation`.
 Entry: Estimate Builder → Open Smart Estimator, or customer → Create smart estimate.
 
 ## Implemented behavior
@@ -10,8 +10,9 @@ Entry: Estimate Builder → Open Smart Estimator, or customer → Create smart e
 - Specialty add-ons have independent affected percentages and severity. Duplicate treatments are rejected.
 - Eight stair materials: concrete, brick, pavers, natural stone, wood, composite, tile, metal. Geometry includes treads, risers, stepped side profiles, and multiple landings. Unusual shapes should be split into separate areas.
 - Memorial faces are selectable; bases/blocks use separate areas. Labor includes area productivity, dwell, lettering/detail and access/protection. Unknown stone and missing permission/condition/label/test patch checks block finalization. SH, acids, sealer and pressure washing are not offered for memorials.
+- Light, moderate and heavy severity estimate 1, 2 and 3 application passes, respectively. An editable $30/hour baseline maps to $25/$30/$35 per person-hour. Severity-based passes multiply application quantities and time; product coats are additional. Verify this conservative model against the actual job to avoid double-counting coats/passes.
 - All application coverage, ratios, SH targets, material productivity factors, coats, dwell, waste and labor rates are editable operator assumptions. None are represented as manufacturer directions. Current product labels and site-specific testing must be reviewed before finalization.
-- The previously chosen Amazon rust product could not be identified from available context; no substitute has been silently selected. Its name, URL, price, shipping, compatibility and application inputs need operator verification.
+- Rust treatment has an operator-provided **$85 provisional purchase price**, but the exact product identity, listing, shipping, container size, compatibility, and application inputs still require verification. The price alone does not authorize finalization.
 - Applied solution, concentrate, water and surfactant volumes; tank batch guidance and SH inventory shortfall warnings. Downstream draw ratios are not assumed.
 - Landed chemical cost amortizes container shipping by consumed concentrate. Labor is person-hours; equipment/overhead use clock-hours. Setup, cleanup, travel and fuel are allocated once per job. Overhead should exclude costs already entered separately.
 - Target operating margin uses `price = cost / (1 - margin)`, distinct from markup. A 30% target is the initial preference. The job minimum applies once; largest-remainder cent allocation preserves nonnegative item amounts and exact totals.
@@ -45,7 +46,9 @@ Existing GitHub quality workflow runs regression tests, types, lint and build on
 
 ## Remaining acceptance checks
 
-- Supply the exact Amazon rust product and verify current purchase prices/labels/application assumptions.
+- Verify exact rust-product identity (provisional $85), all current purchase prices, shipping, labels, and application assumptions.
+- Enter and review equipment hourly cost, travel fuel, overhead hourly cost, and any other missing operating costs; do not use invented zeroes merely to bypass the finalization gate.
+- Validate that severity passes and product coats do not double-count the same real-world applications.
 - Complete authenticated browser save/reload/finalize/PDF/customer-history checks on mobile and desktop. This session initially had no active application login.
 - Review the private Vercel preview and required GitHub quality checks before approving production.
 
