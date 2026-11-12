@@ -297,3 +297,17 @@ test("severity pass counts and summary quantities agree with line items", () => 
     close(r.chemicalCost, r.rows.reduce((sum, row) => sum + row.chemicalCost, 0));
   }
 });
+
+test("truck and repair plan defaults are editable but not automatically approved", () => {
+  const c = defaults();
+  assert.equal(c.equipmentHourly, 8);
+  assert.equal(c.fuel, 15);
+  assert.equal(c.overheadHourly, 9.25);
+  assert.equal(c.products.organic.price, 15);
+  assert.equal(c.surfactantPrice, 35);
+  assert.equal(c.products.rust.price, 85);
+  assert.equal(c.laborRate, 30);
+  assert.equal(c.costsReviewed, false);
+  assert.equal(c.products.organic.productVerified, false);
+  assert.equal(c.products.organic.assumptionsReviewed, false);
+});
