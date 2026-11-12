@@ -34,7 +34,15 @@ export function growthProjection(plan: GrowthPlan, jobPrice: number) {
   const availableTakeHome = cashAfterCostsAndTaxes - equipment - truck - repairs;
   const targetMonthlyRevenue = operatingCost + (plan.takeHomeAfterTax + equipment + truck + repairs) / (1 - plan.taxRate);
   const targetPerJob = targetMonthlyRevenue / jobs;
+  const monthsToEquipment = equipment > 0 ? Math.ceil(5000 / equipment) : null;
+  const monthsToTruck = truck > 0 ? Math.ceil(4000 / truck) : null;
+  const monthsToRepairReserve = repairs > 0 ? Math.ceil(1500 / repairs) : null;
+  const sixMonthEquipment = equipment * 6;
+  const sixMonthTruck = truck * 6;
+  const sixMonthRepairs = repairs * 6;
   return {
+    monthsToEquipment, monthsToTruck, monthsToRepairReserve,
+    sixMonthEquipment, sixMonthTruck, sixMonthRepairs,
     monthlyRevenue, operatingCost, taxReserve, cashAfterCostsAndTaxes,
     availableTakeHome, targetMonthlyRevenue, targetPerJob,
     monthlyShortfall: Math.max(0, targetMonthlyRevenue - monthlyRevenue),
