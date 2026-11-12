@@ -1084,8 +1084,8 @@ export default function SmartEstimate() {
                   <NumberField label="Tax reserve (%)" value={growth.taxRate * 100} max={95} onChange={(v) => edit("taxRate", Math.max(0, Math.min(0.95, (v ?? 0) / 100)))} />
                 </div>
                 <p><strong>Required average sale: {usd(g.targetPerJob)} per job</strong> · Monthly revenue target: {usd(g.targetMonthlyRevenue)}</p>
-                <p>At this estimate's price ({usd(r.total)}), modeled monthly revenue: {usd(g.monthlyRevenue)} · Cash available for owner after modeled costs, taxes and growth transfers: {usd(g.availableTakeHome)} · Revenue shortfall: {usd(g.monthlyShortfall)}</p>
-                <p>Equipment and repair allowances already inside operating costs must not be added a second time. These goals are planning targets only; they do not override the estimate's minimum or operating-margin formula. This scenario uses the entered monthly job count and assumes every job sells at this estimate's price.</p>
+                <p>At this estimate&apos;s price ({usd(r.total)}), modeled monthly revenue: {usd(g.monthlyRevenue)} · Cash available for owner after modeled costs, taxes and growth transfers: {usd(g.availableTakeHome)} · Revenue shortfall: {usd(g.monthlyShortfall)}</p>
+                <p>Equipment and repair allowances already inside operating costs must not be added a second time. These goals are planning targets only; they do not override the estimate&apos;s minimum or operating-margin formula. This scenario uses the entered monthly job count and assumes every job sells at this estimate's price.</p>
               </details>
             );
           })()}
