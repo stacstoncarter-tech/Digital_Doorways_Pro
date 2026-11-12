@@ -1,12 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import ts from "typescript";
-const source = readFileSync(new URL("../lib/smart-estimate/growth.ts", import.meta.url), "utf8");
-const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-const testModule = { exports: {} };
-new Function("module", "exports", js)(testModule, testModule.exports);
-const { defaultGrowthPlan, growthProjection } = testModule.exports;
+import { defaultGrowthPlan, growthProjection } from "../lib/smart-estimate/growth.ts";
 test("growth targets match six-month truck and repair plan", () => {
   const p = defaultGrowthPlan();
   const r = growthProjection(p, 483);
