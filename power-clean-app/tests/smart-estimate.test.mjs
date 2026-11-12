@@ -7,6 +7,7 @@ import {
   measure,
   geometry,
   marginPrice,
+  complexityLaborRate,
   parseDraft,
   TREATMENTS,
   MATERIALS,
@@ -111,10 +112,11 @@ test("specialty dilution, affected area, severity, coats and landed shipping", (
   });
   const row = calculate(d).rows[0];
   close(row.area, 150);
-  close(row.solutionGal, 4);
-  close(row.concentrateGal, 1);
-  close(row.waterGal, 3);
-  close(row.chemicalCost, 50);
+  assert.equal(row.passes, 3);
+  close(row.solutionGal, 6);
+  close(row.concentrateGal, 1.5);
+  close(row.waterGal, 4.5);
+  close(row.chemicalCost, 75);
 });
 test("30 percent margin differs from 30 percent markup", () => {
   close(marginPrice(70, 30), 100);
@@ -274,4 +276,38 @@ test("SH inventory shortage warns and tank volume must be positive", () => {
   assert.ok(calculate(d).warnings.some((x) => x.includes("shortfall")));
   d.config.tankGal = 0;
   assert.throws(() => calculate(d));
+});
+
+test("complexity labor rate uses editable $30 baseline and severity", () => {
+  assert.equal(defaults().laborRate, 30);
+  assert.equal(complexityLaborRate(30, 1), 25);
+  assert.equal(complexityLaborRate(30, 1.5), 30);
+  assert.equal(complexityLaborRate(30, 2), 35);
+  assert.equal(complexityLaborRate(32, 2), 37);
+  assert.throws(() => complexityLaborRate(30, 3));
+});
+
+test("severity pass counts and summary quantities agree with line items", () => {
+  const d = fixture();
+  for (const [severity, expectedPasses] of [[1, 1], [1.5, 2], [2, 3]]) {
+    d.areas[0].treatments[0].severity = severity;
+    const r = calculate(d);
+    assert.equal(r.rows[0].passes, expectedPasses);
+    close(r.totalSolutionGal, r.rows.reduce((sum, row) => sum + row.solutionGal, 0));
+    close(r.chemicalCost, r.rows.reduce((sum, row) => sum + row.chemicalCost, 0));
+  }
+});
+
+test("truck and repair plan defaults are editable but not automatically approved", () => {
+  const c = defaults();
+  assert.equal(c.equipmentHourly, 8);
+  assert.equal(c.fuel, 15);
+  assert.equal(c.overheadHourly, 9.25);
+  assert.equal(c.products.organic.price, 15);
+  assert.equal(c.surfactantPrice, 35);
+  assert.equal(c.products.rust.price, 85);
+  assert.equal(c.laborRate, 30);
+  assert.equal(c.costsReviewed, false);
+  assert.equal(c.products.organic.productVerified, false);
+  assert.equal(c.products.organic.assumptionsReviewed, false);
 });

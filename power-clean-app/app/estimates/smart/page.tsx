@@ -2,9 +2,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ImageMeasurements from "./image-measurements";
+import { defaultGrowthPlan, growthProjection } from "@/lib/smart-estimate/growth";
 import { createClient } from "@/lib/supabase/client";
 import { POWER_CLEAN_LOGO } from "@/lib/branding";
 import {
+  CUSTOMER_SERVICE_ADDRESS,
   calculate,
   defaults,
   newArea,
@@ -102,13 +104,14 @@ const initial = (): Draft => ({
   config: defaults(),
 });
 export default function SmartEstimate() {
-  const [draft, setDraft] = useState<Draft | null>(null),
+  const [growth, setGrowth] = useState(defaultGrowthPlan),
+    [draft, setDraft] = useState<Draft | null>(null),
     [draftId, setDraftId] = useState(""),
     [savedEstimate, setSavedEstimate] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [loadError, setLoadError] = useState("");
-  const [customers, setCustomers] = useState<{ id: string; name: string }[]>(
+  const [customers, setCustomers] = useState<{ id: string; name: string; service_address: string | null }[]>(
       [],
     ),
     [properties, setProperties] = useState<
@@ -144,7 +147,7 @@ export default function SmartEstimate() {
       if (!m) return;
       const { data, error } = await db
         .from("customers")
-        .select("id,name")
+        .select("id,name,service_address")
         .eq("business_id", m.business_id)
         .order("name")
         .limit(500);
@@ -185,6 +188,13 @@ export default function SmartEstimate() {
       active = false;
     };
   }, [draft?.customerId]);
+  const originalAddress = customers.find((customer) => customer.id === draft?.customerId)
+    ?.service_address?.trim();
+  const addressOptions = originalAddress &&
+    (draft?.serviceAddressId === CUSTOMER_SERVICE_ADDRESS ||
+      !properties.some((property) => property.address.trim() === originalAddress))
+    ? [{ id: CUSTOMER_SERVICE_ADDRESS, label: "Customer address", address: originalAddress }, ...properties]
+    : properties;
   const result = useMemo(() => {
     if (!draft) return null;
     try {
@@ -324,7 +334,7 @@ export default function SmartEstimate() {
                 onChange={(e) => change({ serviceAddressId: e.target.value })}
               >
                 <option value="">Select address</option>
-                {properties.map((x) => (
+                {addressOptions.map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.label} — {x.address}
                   </option>
@@ -952,7 +962,7 @@ export default function SmartEstimate() {
               ))}
             </div>
             <p>
-              Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
+              Planning defaults from the Power Clean truck-and-repair plan: equipment $8/hour (including repair and upgrade allowances), local job fuel $15, overhead $9.25/hour at 24 billable hours/month excluding advertising, 10% SH $15/gallon, and surfactant $35/gallon. These are not verified purchase costs; review receipts, actual bills, fuel usage, and the effect of advertising before checking costs reviewed. Labor uses the editable base rate: at $30/hour, light work is $25/hour, moderate is $30/hour, and heavy is $35/hour. Severity also estimates 1, 2, or 3 application passes respectively; verify actual passes and product coats against the job and label before approval. Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
               markup. Shared costs and the job minimum apply once. No discounts
               are applied that could silently reduce your target margin.
             </p>
@@ -990,6 +1000,7 @@ export default function SmartEstimate() {
                       <th>Service</th>
                       <th>Area</th>
                       <th>Applied / product / water gal</th>
+                      <th>Passes</th>
                       <th>Surfactant oz</th>
                       <th>Hours</th>
                       <th>Chemicals</th>
@@ -1006,6 +1017,7 @@ export default function SmartEstimate() {
                           {x.concentrateGal.toFixed(3)} /{" "}
                           {x.waterGal.toFixed(3)}
                         </td>
+                        <td>{x.passes}</td>
                         <td>{x.surfactantOz.toFixed(2)}</td>
                         <td>{x.hours.toFixed(2)}</td>
                         <td>{usd(x.chemicalCost)}</td>
@@ -1016,7 +1028,7 @@ export default function SmartEstimate() {
                 </table>
               </div>
               <p>
-                Operating cost {usd(r.cost)} · Operating profit {usd(r.profit)}{" "}
+                Total chemicals {usd(r.chemicalCost)} · Solution {r.totalSolutionGal.toFixed(2)} gal · Operating cost {usd(r.cost)} · Operating profit {usd(r.profit)}{" "}
                 · Margin {r.margin.toFixed(2)}% · Markup {r.markup.toFixed(2)}%
               </p>
               <p className="smart-total">
@@ -1063,6 +1075,29 @@ export default function SmartEstimate() {
               </details>
             </>
           )}
+          {r && (() => {
+            const g = growthProjection(growth, r.total);
+            const edit = (key: keyof typeof growth, value: number) => setGrowth((old) => ({ ...old, [key]: value }));
+            return (
+              <details className="smart-growth" open>
+                <summary>Business Growth Planner — internal only</summary>
+                <p>Planning scenario, not a customer quote adjustment. The $483/job target in your plan assumes 12 jobs/month, $64/job operating costs, and a 25% modeled tax reserve. Actual operating costs and taxes may differ.</p>
+                <div className="smart-flex">
+                  <NumberField label="Paid jobs per month" value={growth.jobsPerMonth} min={1} onChange={(v) => edit("jobsPerMonth", Math.max(1, v ?? 1))} />
+                  <NumberField label="Modeled operating cost per job ($)" value={growth.operatingCostPerJob} onChange={(v) => edit("operatingCostPerJob", v ?? 0)} />
+                  <NumberField label="Owner take-home after tax / month ($)" value={growth.takeHomeAfterTax} onChange={(v) => edit("takeHomeAfterTax", v ?? 0)} />
+                  <NumberField label="Equipment savings / month ($)" value={growth.equipmentMonthly} onChange={(v) => edit("equipmentMonthly", v ?? 0)} />
+                  <NumberField label="Truck savings / month ($)" value={growth.truckMonthly} onChange={(v) => edit("truckMonthly", v ?? 0)} />
+                  <NumberField label="Repair savings / month ($)" value={growth.repairsMonthly} onChange={(v) => edit("repairsMonthly", v ?? 0)} />
+                  <NumberField label="Tax reserve (%)" value={growth.taxRate * 100} max={95} onChange={(v) => edit("taxRate", Math.max(0, Math.min(0.95, (v ?? 0) / 100)))} />
+                </div>
+                <p><strong>Required average sale: {usd(g.targetPerJob)} per job</strong> · Monthly revenue target: {usd(g.targetMonthlyRevenue)}</p>
+                <p>At this estimate&apos;s price ({usd(r.total)}), modeled monthly revenue: {usd(g.monthlyRevenue)} · Cash available for owner after modeled costs, taxes and growth transfers: {usd(g.availableTakeHome)} · Revenue shortfall: {usd(g.monthlyShortfall)}</p>
+                <p>Six-month savings at these transfer amounts: equipment {usd(g.sixMonthEquipment)} (target $5,000; {g.monthsToEquipment ?? "not funded"} months), truck {usd(g.sixMonthTruck)} (target $4,000; {g.monthsToTruck ?? "not funded"} months), and repair reserve {usd(g.sixMonthRepairs)} (target $1,500; {g.monthsToRepairReserve ?? "not funded"} months). Assumes $0 starting balances and no withdrawals. Trailer cost and ongoing truck payments are not included.</p>
+                <p>Equipment and repair allowances already inside operating costs must not be added a second time. These goals are planning targets only; they do not override the estimate&apos;s minimum or operating-margin formula. This scenario uses the entered monthly job count and assumes every job sells at this estimate&apos;s price.</p>
+              </details>
+            );
+          })()}
           <div className="smart-flex">
             <button
               type="button"
@@ -1125,7 +1160,7 @@ export default function SmartEstimate() {
           <h1>Power Clean Estimate</h1>
           <p>{customers.find((x) => x.id === draft.customerId)?.name}</p>
           <p>
-            {properties.find((x) => x.id === draft.serviceAddressId)?.address}
+            {addressOptions.find((x) => x.id === draft.serviceAddressId)?.address}
           </p>
           <table>
             <thead>

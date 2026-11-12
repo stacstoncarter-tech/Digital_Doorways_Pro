@@ -104,6 +104,8 @@ export type Config = {
   tankGal: number;
   stockAvailableGal: number;
 };
+export const CUSTOMER_SERVICE_ADDRESS = "customer-service-address";
+
 export type Draft = {
   version: 1;
   customerId: string;
@@ -175,6 +177,12 @@ export function geometry(a: Area) {
   };
   return { area: Object.values(parts).reduce((n, v) => n + v, 0), parts };
 }
+/** Complexity-adjusted labor rate. Base $30/h maps light/moderate/heavy to $25/$30/$35. */
+export function complexityLaborRate(baseRate: number, severity: number): number {
+  nonnegative(baseRate, "labor rate");
+  if (![1, 1.5, 2].includes(severity)) throw Error("Invalid severity");
+  return money(Math.max(0, baseRate + (severity - 1.5) * 10));
+}
 export function marginPrice(cost: number, margin: number) {
   nonnegative(cost, "cost");
   if (!Number.isFinite(margin) || margin < 0 || margin >= 100)
@@ -204,7 +212,7 @@ export function defaults(): Config {
   });
   return {
     products: {
-      organic: p("Sodium hypochlorite", "", 200, 600),
+      organic: { ...p("Sodium hypochlorite", "", 200, 600), price: 15 },
       clay: p(
         "Mud May-Day",
         "https://southeastsoftwash.com/products/mud-may-day-stain-remover",
@@ -236,11 +244,11 @@ export function defaults(): Config {
         25,
       ),
     },
-    laborRate: null,
+    laborRate: 30,
     crew: 1,
-    equipmentHourly: null,
-    fuel: null,
-    overheadHourly: null,
+    equipmentHourly: 8,
+    fuel: 15,
+    overheadHourly: 9.25,
     setupMinutes: 30,
     travelMinutes: 30,
     minimum: 150,
@@ -258,7 +266,7 @@ export function defaults(): Config {
       metal: 0,
     },
     surfactantOzPerGal: 0,
-    surfactantPrice: null,
+    surfactantPrice: 35,
     wastePercent: 10,
     costsReviewed: false,
     materialFactors: {
@@ -360,6 +368,7 @@ export function calculate(draft: Draft) {
     hours: number;
     laborHours: number;
     solutionGal: number;
+    passes: number;
     concentrateGal: number;
     waterGal: number;
     surfactantOz: number;
@@ -507,10 +516,12 @@ export function calculate(draft: Draft) {
           a.name + ": enter a positive material labor productivity factor.",
         );
       const treated = (area * t.percent) / 100;
+      // Severity controls explicit application passes; product coats are additional required coats.
+      const passes = t.severity === 1 ? 1 : t.severity === 1.5 ? 2 : 3;
       const solutionGal =
         (treated / p.coverage) *
         p.coats *
-        t.severity *
+        passes *
         (1 + c.wastePercent / 100);
       let fraction = p.productParts / (p.productParts + p.waterParts),
         surfactantOz = 0;
@@ -549,14 +560,14 @@ export function calculate(draft: Draft) {
         : 0;
       const hours =
         (treated / (p.productivity * (factor > 0 ? factor : 1))) *
-          t.severity *
+          passes *
           p.coats +
         p.dwellMinutes / 60 +
         detail;
       const cost =
         chemicalCost +
         hours *
-          ((c.laborRate ?? 0) * c.crew +
+          (complexityLaborRate(c.laborRate ?? 30, t.severity) * c.crew +
             (c.equipmentHourly ?? 0) +
             (c.overheadHourly ?? 0));
       const dimensions =
@@ -585,6 +596,7 @@ export function calculate(draft: Draft) {
         hours,
         laborHours: hours * c.crew,
         solutionGal,
+        passes,
         concentrateGal,
         waterGal,
         surfactantOz,
@@ -643,6 +655,8 @@ export function calculate(draft: Draft) {
     markup: cost ? (100 * (total - cost)) / cost : 0,
     hours: rows.reduce((n, r) => n + r.hours, 0) + sharedHours,
     laborHours: (rows.reduce((n, r) => n + r.hours, 0) + sharedHours) * c.crew,
+    chemicalCost: money(rows.reduce((n, r) => n + r.chemicalCost, 0)),
+    totalSolutionGal: rows.reduce((n, r) => n + r.solutionGal, 0),
     shRequired,
   };
 }
