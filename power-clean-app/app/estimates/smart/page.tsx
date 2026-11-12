@@ -157,13 +157,18 @@ export default function SmartEstimate() {
       if (list.error) setLoadError(list.error);
       else {
         setSavedDrafts(list.drafts ?? []);
-        const requested = new URLSearchParams(location.search).get("draft");
+        const params = new URLSearchParams(location.search);
+        const requested = params.get("draft");
         if (requested) {
           const loaded = await loadSmartDraft(requested);
           if (loaded.snapshot) {
             setDraft(parseDraft(loaded.snapshot));
-            setDraftId(requested);
-            setSavedEstimate(loaded.estimateId ?? "");
+            if (params.get("revise") === "1" && loaded.estimateId) {
+              setMessage("Editing a copy. Finalize it and send a new approval link for the revised price.");
+            } else {
+              setDraftId(requested);
+              setSavedEstimate(loaded.estimateId ?? "");
+            }
           }
         }
       }
@@ -1145,7 +1150,10 @@ export default function SmartEstimate() {
               <Link href={"/estimates/smart/pdf?id=" + draftId}>
                 Download saved PDF
               </Link>
-              . Finalized snapshots are locked; start a new estimate to revise.
+              {" · "}
+              <Link href={"/estimates/smart?draft=" + draftId + "&revise=1"}>
+                Revise estimate
+              </Link>
             </p>
           )}
         </section>
