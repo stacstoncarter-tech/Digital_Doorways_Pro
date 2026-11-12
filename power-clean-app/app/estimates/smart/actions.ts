@@ -1,6 +1,6 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
-import { calculate, parseDraft, type Draft } from "@/lib/smart-estimate/engine";
+import { CUSTOMER_SERVICE_ADDRESS, calculate, parseDraft, type Draft } from "@/lib/smart-estimate/engine";
 import { revalidatePath } from "next/cache";
 async function context() {
   const db = await createClient();
@@ -24,11 +24,15 @@ async function validateCustomer(
 ) {
   const { data } = await ctx.db
     .from("customers")
-    .select("id")
+    .select("id,service_address")
     .eq("id", d.customerId)
     .eq("business_id", ctx.businessId)
     .maybeSingle();
   if (!data) throw Error("Select a customer in your business.");
+  if (d.serviceAddressId === CUSTOMER_SERVICE_ADDRESS) {
+    if (!data.service_address?.trim()) throw Error("This customer has no saved service address.");
+    return;
+  }
   if (d.serviceAddressId) {
     const { data: p } = await ctx.db
       .from("customer_addresses")
@@ -130,7 +134,7 @@ export async function finalizeSmartEstimate(value: unknown, id?: string) {
     const { data, error } = await ctx.db.rpc("finalize_smart_estimate", {
       p_draft_id: id || null,
       p_customer_id: d.customerId,
-      p_address_id: d.serviceAddressId,
+      p_address_id: d.serviceAddressId === CUSTOMER_SERVICE_ADDRESS ? null : d.serviceAddressId,
       p_snapshot: d,
       p_items: items,
     });

@@ -104,6 +104,8 @@ export type Config = {
   tankGal: number;
   stockAvailableGal: number;
 };
+export const CUSTOMER_SERVICE_ADDRESS = "customer-service-address";
+
 export type Draft = {
   version: 1;
   customerId: string;

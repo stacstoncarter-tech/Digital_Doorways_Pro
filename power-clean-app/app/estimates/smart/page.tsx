@@ -6,6 +6,7 @@ import { defaultGrowthPlan, growthProjection } from "@/lib/smart-estimate/growth
 import { createClient } from "@/lib/supabase/client";
 import { POWER_CLEAN_LOGO } from "@/lib/branding";
 import {
+  CUSTOMER_SERVICE_ADDRESS,
   calculate,
   defaults,
   newArea,
@@ -110,7 +111,7 @@ export default function SmartEstimate() {
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
     [loadError, setLoadError] = useState("");
-  const [customers, setCustomers] = useState<{ id: string; name: string }[]>(
+  const [customers, setCustomers] = useState<{ id: string; name: string; service_address: string | null }[]>(
       [],
     ),
     [properties, setProperties] = useState<
@@ -146,7 +147,7 @@ export default function SmartEstimate() {
       if (!m) return;
       const { data, error } = await db
         .from("customers")
-        .select("id,name")
+        .select("id,name,service_address")
         .eq("business_id", m.business_id)
         .order("name")
         .limit(500);
@@ -187,6 +188,13 @@ export default function SmartEstimate() {
       active = false;
     };
   }, [draft?.customerId]);
+  const originalAddress = customers.find((customer) => customer.id === draft?.customerId)
+    ?.service_address?.trim();
+  const addressOptions = originalAddress &&
+    (draft?.serviceAddressId === CUSTOMER_SERVICE_ADDRESS ||
+      !properties.some((property) => property.address.trim() === originalAddress))
+    ? [{ id: CUSTOMER_SERVICE_ADDRESS, label: "Customer address", address: originalAddress }, ...properties]
+    : properties;
   const result = useMemo(() => {
     if (!draft) return null;
     try {
@@ -326,7 +334,7 @@ export default function SmartEstimate() {
                 onChange={(e) => change({ serviceAddressId: e.target.value })}
               >
                 <option value="">Select address</option>
-                {properties.map((x) => (
+                {addressOptions.map((x) => (
                   <option key={x.id} value={x.id}>
                     {x.label} — {x.address}
                   </option>
@@ -1152,7 +1160,7 @@ export default function SmartEstimate() {
           <h1>Power Clean Estimate</h1>
           <p>{customers.find((x) => x.id === draft.customerId)?.name}</p>
           <p>
-            {properties.find((x) => x.id === draft.serviceAddressId)?.address}
+            {addressOptions.find((x) => x.id === draft.serviceAddressId)?.address}
           </p>
           <table>
             <thead>
