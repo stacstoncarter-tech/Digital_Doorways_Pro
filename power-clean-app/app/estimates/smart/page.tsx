@@ -1085,6 +1085,7 @@ export default function SmartEstimate() {
                 </div>
                 <p><strong>Required average sale: {usd(g.targetPerJob)} per job</strong> · Monthly revenue target: {usd(g.targetMonthlyRevenue)}</p>
                 <p>At this estimate&apos;s price ({usd(r.total)}), modeled monthly revenue: {usd(g.monthlyRevenue)} · Cash available for owner after modeled costs, taxes and growth transfers: {usd(g.availableTakeHome)} · Revenue shortfall: {usd(g.monthlyShortfall)}</p>
+                <p>Six-month savings at these transfer amounts: equipment {usd(g.sixMonthEquipment)} (target $5,000; {g.monthsToEquipment ?? "not funded"} months), truck {usd(g.sixMonthTruck)} (target $4,000; {g.monthsToTruck ?? "not funded"} months), and repair reserve {usd(g.sixMonthRepairs)} (target $1,500; {g.monthsToRepairReserve ?? "not funded"} months). Assumes $0 starting balances and no withdrawals. Trailer cost and ongoing truck payments are not included.</p>
                 <p>Equipment and repair allowances already inside operating costs must not be added a second time. These goals are planning targets only; they do not override the estimate&apos;s minimum or operating-margin formula. This scenario uses the entered monthly job count and assumes every job sells at this estimate&apos;s price.</p>
               </details>
             );
