@@ -952,7 +952,7 @@ export default function SmartEstimate() {
               ))}
             </div>
             <p>
-              Labor uses the editable base rate: at $30/hour, light work is $25/hour, moderate is $30/hour, and heavy is $35/hour. Severity also estimates 1, 2, or 3 application passes respectively; verify actual passes and product coats against the job and label before approval. Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
+              Planning defaults from the Power Clean truck-and-repair plan: equipment $8/hour (including repair and upgrade allowances), local job fuel $15, overhead $9.25/hour at 24 billable hours/month excluding advertising, 10% SH $15/gallon, and surfactant $35/gallon. These are not verified purchase costs; review receipts, actual bills, fuel usage, and the effect of advertising before checking costs reviewed. Labor uses the editable base rate: at $30/hour, light work is $25/hour, moderate is $30/hour, and heavy is $35/hour. Severity also estimates 1, 2, or 3 application passes respectively; verify actual passes and product coats against the job and label before approval. Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
               markup. Shared costs and the job minimum apply once. No discounts
               are applied that could silently reduce your target margin.
             </p>
