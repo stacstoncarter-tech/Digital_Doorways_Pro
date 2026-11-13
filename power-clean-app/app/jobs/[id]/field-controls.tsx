@@ -1,6 +1,6 @@
 'use client';
 import {useActionState,useState,useTransition} from 'react';
-import {addChecklistItem,toggleChecklistItem,uploadJobPhoto} from './actions';
+import {addChecklistItem,toggleChecklistItem,addCustomerPhotoToJob} from './actions';
 type Item={id:string;title:string;is_complete:boolean};
 export function Checklist({jobId,items}:{jobId:string;items:Item[]}){
  const [state,action,pending]=useActionState(addChecklistItem,{error:'',success:''});
@@ -21,4 +21,27 @@ export function HazardLog({jobId,items}:{jobId:string;items:Item[]}){
  <button disabled={pending||!description.trim()||('[HAZARD] '+category+': '+description.trim()).length>200}>Add hazard / obstacle</button>{state.error&&<p role="alert">{state.error}</p>}{state.success&&<p role="status">{state.success}</p>}
  </form></section>;
 }
-export function PhotoUpload({jobId}:{jobId:string}){const [state,action,pending]=useActionState(uploadJobPhoto,{error:'',success:''});return <section className="panel"><h2>Job photos</h2><form action={action} style={{display:'grid',gap:12,maxWidth:550}}><input type="hidden" name="job_id" value={jobId}/><label>Stage<select name="phase"><option value="before">Before</option><option value="during">During</option><option value="after">After</option></select></label><label>Photo<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required/></label><label>Caption<input name="caption" maxLength={300}/></label><button disabled={pending}>Upload photo</button>{state.error&&<p role="alert">{state.error}</p>}{state.success&&<p role="status">{state.success}</p>}</form></section>}
+type LibraryPhoto={name:string;url:string|null};
+
+export function JobPhotoPicker({jobId,photos}:{jobId:string;photos:LibraryPhoto[]}){
+ const [state,action,pending]=useActionState(addCustomerPhotoToJob,{error:'',success:''});
+ if(!photos.length)return null;
+
+ return <form action={action} style={{display:'grid',gap:12}}>
+  <input type="hidden" name="job_id" value={jobId}/>
+  <fieldset disabled={pending}>
+   <legend>Choose a customer photo</legend>
+   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(120px,1fr))',gap:12,maxHeight:360,overflowY:'auto'}}>
+    {photos.map(photo=><label key={photo.name} style={{display:'grid',gap:4}}>
+     {photo.url&&<img src={photo.url} alt="" loading="lazy" style={{width:'100%',height:100,objectFit:'cover',borderRadius:8}}/>}
+     <span><input type="radio" name="photo" value={photo.name} required aria-label={photo.name}/> {photo.name.split('-')[0]}</span>
+    </label>)}
+   </div>
+  </fieldset>
+  <label>Stage <select name="phase"><option value="before">Before</option><option value="during">During</option><option value="after">After</option></select></label>
+  <label>Caption <input name="caption" maxLength={300}/></label>
+  <button disabled={pending}>{pending?'Adding photo…':'Add to job'}</button>
+  {state.error&&<p role="alert">{state.error}</p>}
+  {state.success&&<p role="status">{state.success}</p>}
+ </form>;
+}
