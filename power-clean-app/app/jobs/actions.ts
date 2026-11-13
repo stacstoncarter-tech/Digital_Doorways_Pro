@@ -2,7 +2,7 @@
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
 import {serviceTimeToIso} from '@/lib/schedule-time';
-type Result={error?:string;success?:boolean};
+type Result={error?:string;success?:boolean;jobId?:string};
 async function context(){
  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();
  if(!user)return null;
@@ -15,12 +15,26 @@ export async function createJobFromEstimate(estimateId:string):Promise<Result>{
  if(!/^[0-9a-f-]{36}$/i.test(estimateId))return {error:'Invalid estimate.'};
  const {data:e}=await ctx.supabase.from('estimates').select('id,customer_id,service_address_id,status').is('deleted_at',null).eq('id',estimateId).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!e||e.status!=='accepted')return {error:'Only accepted estimates can become jobs.'};
- const {data:existing}=await ctx.supabase.from('jobs').select('id').is('deleted_at',null).eq('business_id',ctx.member.business_id).eq('estimate_id',e.id).limit(1).maybeSingle();
- if(existing)return {error:'A job already exists for this estimate.'};
- const {error}=await ctx.supabase.from('jobs').insert({business_id:ctx.member.business_id,customer_id:e.customer_id,estimate_id:e.id,service_address_id:e.service_address_id,created_by:ctx.user.id});
- if(error)return {error:error.code==='23505'?'A job already exists for this estimate.':'Could not create job.'};
- revalidatePath('/jobs');revalidatePath('/estimates/history');
- return {success:true};
+ const findExistingJob=()=>ctx.supabase.from('jobs').select('id').is('deleted_at',null)
+  .eq('business_id',ctx.member.business_id).eq('estimate_id',e.id).limit(1).maybeSingle();
+ const {data:existing,error:lookupError}=await findExistingJob();
+ if(lookupError)return {error:'Could not check for an existing job. Try again.'};
+ if(existing)return {success:true,jobId:existing.id};
+
+ const {data:job,error}=await ctx.supabase.from('jobs').insert({
+  business_id:ctx.member.business_id,customer_id:e.customer_id,estimate_id:e.id,
+  service_address_id:e.service_address_id,created_by:ctx.user.id
+ }).select('id').single();
+ if(error?.code==='23505'){
+  const {data:existingJob}=await findExistingJob();
+  if(existingJob)return {success:true,jobId:existingJob.id};
+  return {error:'A job for this estimate may be in Trash. Check Trash and restore it to continue.'};
+ }
+ if(error||!job)return {error:'Could not create the job. Refresh Saved Estimates and try again.'};
+
+ revalidatePath('/jobs');
+ revalidatePath('/estimates/history');
+ return {success:true,jobId:job.id};
 }
 export async function updateJob(_state:{error:string;success:string},form:FormData):Promise<{error:string;success:string}>{
  const ctx=await context();if(!ctx)return {error:'Access denied.',success:''};
