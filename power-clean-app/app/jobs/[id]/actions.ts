@@ -2,7 +2,7 @@
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
 type State={error:string;success:string};
-async function context(jobId:string){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user||!/^[0-9a-f-]{36}$/i.test(jobId))return null;const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();if(!member||!['owner','admin','staff'].includes(member.role))return null;const {data:job}=await supabase.from('jobs').select('id').is('deleted_at',null).eq('id',jobId).eq('business_id',member.business_id).maybeSingle();if(!job)return null;return {supabase,user,member};}
+async function context(jobId:string){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user||!/^[0-9a-f-]{36}$/i.test(jobId))return null;const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();if(!member||!['owner','admin','staff'].includes(member.role))return null;const {data:job}=await supabase.from('jobs').select('id,customer_id').is('deleted_at',null).eq('id',jobId).eq('business_id',member.business_id).maybeSingle();if(!job)return null;return {supabase,user,member,job};}
 export async function addChecklistItem(_state:State,f:FormData):Promise<State>{
  const jobId=String(f.get('job_id')||''),title=String(f.get('title')||'').trim();const ctx=await context(jobId);
  if(!ctx)return {error:'Access denied.',success:''};if(!title||title.length>200)return {error:'Enter a checklist item.',success:''};
@@ -14,17 +14,33 @@ export async function toggleChecklistItem(jobId:string,id:string,complete:boolea
  const {error}=await ctx.supabase.from('job_checklist_items').update({is_complete:complete,completed_at:complete?new Date().toISOString():null,completed_by:complete?ctx.user.id:null}).eq('id',id).eq('job_id',jobId).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update checklist.'};revalidatePath('/jobs/'+jobId);return {success:true};
 }
-export async function uploadJobPhoto(_state:State,f:FormData):Promise<State>{
- const jobId=String(f.get('job_id')||''),phase=String(f.get('phase')||''),caption=String(f.get('caption')||'').trim(),file=f.get('photo');
- const ctx=await context(jobId);if(!ctx)return {error:'Access denied.',success:''};
- if(!['before','during','after'].includes(phase)||caption.length>300||!(file instanceof File)||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size<=0||file.size>10*1024*1024)return {error:'Upload a JPEG, PNG, or WebP image under 10 MB.',success:''};
- const ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
- const path=ctx.member.business_id+'/'+jobId+'/'+crypto.randomUUID()+'.'+ext;
- const {error:uploadError}=await ctx.supabase.storage.from('power-clean-job-photos').upload(path,file,{contentType:file.type,upsert:false});
- if(uploadError)return {error:'Photo upload failed.',success:''};
+export async function addCustomerPhotoToJob(_state:State, form:FormData):Promise<State>{
+ const jobId=String(form.get('job_id')||'');
+ const phase=String(form.get('phase')||'');
+ const caption=String(form.get('caption')||'').trim();
+ const filename=String(form.get('photo')||'');
+ const ctx=await context(jobId);
+ if(!ctx?.job.customer_id)return {error:'This job has no accessible customer profile.',success:''};
+ const extension=/^[\w-]+\.(jpe?g|png|webp)$/i.exec(filename)?.[1].toLowerCase();
+ if(!extension||!['before','during','after'].includes(phase)||caption.length>300){
+  return {error:'Choose a customer photo and a stage. Captions can be up to 300 characters.',success:''};
+ }
+
+ const sourcePath=ctx.member.business_id+'/'+ctx.job.customer_id+'/'+filename;
+ const {data:file,error:downloadError}=await ctx.supabase.storage.from('power-clean-customer-photos').download(sourcePath);
+ if(downloadError||!file)return {error:'Could not open that customer photo. It may have been removed.',success:''};
+
+ const path=ctx.member.business_id+'/'+jobId+'/'+crypto.randomUUID()+'.'+extension;
+ const bucket=ctx.supabase.storage.from('power-clean-job-photos');
+ const {error:uploadError}=await bucket.upload(path,file,{contentType:file.type,upsert:false});
+ if(uploadError)return {error:'Could not save the customer photo to this job: '+uploadError.message,success:''};
  const {error}=await ctx.supabase.from('job_photos').insert({job_id:jobId,business_id:ctx.member.business_id,storage_path:path,phase,caption,created_by:ctx.user.id});
- if(error){await ctx.supabase.storage.from('power-clean-job-photos').remove([path]);return {error:'Could not save photo record.',success:''};}
- revalidatePath('/jobs/'+jobId);return {error:'',success:'Photo saved.'};
+ if(error){
+  await bucket.remove([path]);
+  return {error:'Could not save the job photo record.',success:''};
+ }
+ revalidatePath('/jobs/'+jobId);
+ return {error:'',success:'Customer photo added to the job.'};
 }
 
 export async function deleteJobPhoto(jobId:string,photoId:string){
