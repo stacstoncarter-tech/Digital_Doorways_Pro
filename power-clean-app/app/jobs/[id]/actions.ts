@@ -21,7 +21,7 @@ export async function addCustomerPhotoToJob(_state:State, form:FormData):Promise
  const filename=String(form.get('photo')||'');
  const ctx=await context(jobId);
  if(!ctx?.job.customer_id)return {error:'This job has no accessible customer profile.',success:''};
- const extension=/^[\w-]+\.(jpe?g|png|webp|heic|heif)$/i.exec(filename)?.[1].toLowerCase();
+ const extension=/^[\w-]+\.(jpe?g|png|webp)$/i.exec(filename)?.[1].toLowerCase();
  if(!extension||!['before','during','after'].includes(phase)||caption.length>300){
   return {error:'Choose a customer photo and a stage. Captions can be up to 300 characters.',success:''};
  }
