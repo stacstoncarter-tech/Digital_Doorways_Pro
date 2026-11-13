@@ -1,8 +1,30 @@
 'use client';
-import {useState,useTransition} from 'react';
+
 import Link from 'next/link';
+import {useState,useTransition} from 'react';
 import {createJobFromEstimate} from '@/app/jobs/actions';
+
 export default function CreateJobButton({estimateId}:{estimateId:string}){
- const [pending,start]=useTransition(),[message,setMessage]=useState(''),[ok,setOk]=useState(false);
- return <div style={{margin:'12px 0'}}>{ok?<p role="status">Job created. <Link href="/jobs">Open Jobs & Scheduling</Link></p>:<><button disabled={pending} type="button" onClick={()=>start(async()=>{const r=await createJobFromEstimate(estimateId);setOk(!!r.success);setMessage(r.error||'');})}>{pending?'Creating…':'Create job from accepted estimate'}</button>{message&&<p role="alert">{message}</p>}</>}</div>;
+ const [jobId,setJobId]=useState('');
+ const [message,setMessage]=useState('');
+ const [pending,start]=useTransition();
+
+ function createJob(){
+  setMessage('');
+  start(async()=>{
+   try{
+    const result=await createJobFromEstimate(estimateId);
+    if(result.jobId)setJobId(result.jobId);
+    else setMessage(result.error||'Could not open the job. Try again.');
+   }catch{
+    setMessage('Could not reach the server. Try again.');
+   }
+  });
+ }
+
+ return <div style={{margin:'12px 0'}}>
+  {jobId?<p role="status">Job ready. <Link href={'/jobs/'+jobId+'#job-schedule'}>Open job and set service dates</Link></p>:
+   <button disabled={pending} type="button" onClick={createJob}>{pending?'Opening job…':'Create or open job'}</button>}
+  {message&&<p role="alert">{message}</p>}
+ </div>;
 }
