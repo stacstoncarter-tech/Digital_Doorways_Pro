@@ -22,7 +22,7 @@ export default async function JobDetail({params}:{params:Promise<{id:string}>}){
  const {data:customerFiles,error:libraryError}=canAddPhotos
   ?await customerBucket.list(folder,{limit:100,sortBy:{column:'created_at',order:'desc'}})
   :{data:[],error:null};
- const libraryFiles=(customerFiles||[]).filter(file=>/^[\w-]+\.(jpe?g|png|webp|heic|heif)$/i.test(file.name));
+ const libraryFiles=(customerFiles||[]).filter(file=>/^[\w-]+\.(jpe?g|png|webp)$/i.test(file.name));
  const {data:libraryLinks}=libraryFiles.length
   ?await customerBucket.createSignedUrls(libraryFiles.map(file=>folder+'/'+file.name),600)
   :{data:[]};
@@ -39,7 +39,7 @@ export default async function JobDetail({params}:{params:Promise<{id:string}>}){
  {customer&&<p><Link href={'/customers/'+job.customer_id+'/photos'}>Open customer photo library</Link></p>}
  {!customer&&<p>This job has no accessible customer photo library.</p>}
  {libraryError&&<p role="alert">Could not load the customer photo library.</p>}
- {canAddPhotos&&!libraryError&&!libraryPhotos.length&&<p>Upload photos in the customer photo library to add them here.</p>}
+ {canAddPhotos&&!libraryError&&!libraryPhotos.length&&<p>Upload a JPEG, PNG, or WebP in the customer photo library to add it here.</p>}
  <JobPhotoPicker jobId={id} photos={libraryPhotos}/>
  </section><section className="panel"><h2>Before / during / after gallery</h2>{photoUrls.length?<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>{photoUrls.map(p=><figure key={p.id} style={{margin:0}}>{p.url?<a href={p.url} target="_blank" rel="noopener noreferrer"><img src={p.url} alt={p.caption||p.phase+' job photo'} style={{width:'100%',height:200,objectFit:'cover',borderRadius:8}}/></a>:<p>Photo unavailable</p>}<figcaption>{p.phase.toUpperCase()} · {p.caption}</figcaption><PhotoDeleteButton jobId={id} photoId={p.id}/></figure>)}</div>:<p>No photos added to this job yet.</p>}</section>
  <section className="panel" id="job-deliver"><h2>5 · Customer service report</h2><p>Generate a branded before-and-after photo report with checklist details. Use Print / Save as PDF to send the completed document to the customer.</p><Link href={"/jobs/"+id+"/report"}>Open printable photo report</Link></section><section className="panel" id="job-payment"><h2>6 · Invoice & payment</h2>{job.status==='completed'&&job.estimate_id?<CreateInvoiceButton jobId={id}/>:<p>Mark this job completed in Schedule & confirm to create an invoice from its accepted estimate.</p>}<p><Link href="/invoices">Open invoices & payments</Link></p></section></main>;
