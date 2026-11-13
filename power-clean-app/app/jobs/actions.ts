@@ -46,8 +46,8 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
    const isTestOnlyBundle=testTypes.has('service_contract')&&testTypes.has('liability_release');
    if(testScheduling&&ctx.member.role==='owner'&&status==='scheduled'&&isTestOnlyBundle){
     const testNotes='[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK] '+notes;
-    const {error:testError}=await ctx.supabase.from('jobs').update({status,notes:testNotes,scheduled_start:startIso,scheduled_end:endIso,completed_at:null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
-    if(testError)return {error:'Could not save test schedule.',success:''};
+    const {data:savedTest,error:testError}=await ctx.supabase.from('jobs').update({status,notes:testNotes,scheduled_start:startIso,scheduled_end:endIso,completed_at:null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
+    if(testError||!savedTest)return {error:'Could not save test schedule.',success:''};
     revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);
     return {error:'',success:'TEST ONLY schedule saved. This does not authorize real customer work.'};
    }
@@ -59,7 +59,7 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
   }
  }
  if((old.notes||'').startsWith('[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK]')&&status!=='canceled')return {error:'This is a TEST ONLY job. It cannot be converted into real customer work; create a separate production job with approved agreements.',success:''};
- const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
- if(error)return {error:'Could not update job.',success:''};
- revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);return {error:'',success:'Job updated.'};
+ const {data:saved,error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
+ if(error||!saved)return {error:'Could not save this job. Refresh and check that the job is still available and editable.',success:''};
+ revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);return {error:'',success:status==='scheduled'?'Job scheduled.':status==='unscheduled'&&startIso?'Proposed service dates saved. Job is still unscheduled.':'Job updated.'};
 }
