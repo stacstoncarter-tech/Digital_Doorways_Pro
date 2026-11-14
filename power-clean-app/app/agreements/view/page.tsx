@@ -1,0 +1,23 @@
+import Link from 'next/link';
+import PrintButton from './print-button';
+import DraftEditor from '../draft-editor';
+import {POWER_CLEAN_LOGO} from '@/lib/branding';
+import {redirect} from 'next/navigation';
+import {createClient} from '@/lib/supabase/server';
+export default async function AgreementView({searchParams}:{searchParams:Promise<{id?:string}>}){
+ const {id}=await searchParams;
+ const supabase=await createClient();
+ const {data:{user}}=await supabase.auth.getUser();
+ if(!user)redirect('/login');
+ const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
+ if(!member)redirect('/agreements');
+ const {data:a}=await supabase.from('customer_agreements').select('id,title,body,status,signer_name,signed_at,marketing_photo_consent,signer_acknowledged,signed_document_sha256,signer_user_agent,contractor_signer_name,contractor_signer_title,contractor_signed_at,contractor_signature_image_data').is('deleted_at',null).eq('id',id||'00000000-0000-0000-0000-000000000000').eq('business_id',member.business_id).maybeSingle();
+ const {data:audit}=a?await supabase.from('agreement_signature_events').select('event_type,signed_at,marketing_photo_consent,document_sha256').eq('agreement_id',a.id).maybeSingle():{data:null};
+ if(!a)return <main className="workspace"><h1>Agreement not found</h1></main>;
+ const fingerprintVerified=a.status==='signed'&&Boolean(a.signed_document_sha256)&&audit?.document_sha256===a.signed_document_sha256;
+ return <main className="workspace"><header className="print-hide"><Link href="/agreements">Back to agreements</Link></header><section className="panel">
+ <img src={POWER_CLEAN_LOGO} alt="Power Clean logo" style={{display:"block",maxWidth:340,width:"100%",height:"auto",marginBottom:18}}/><h1>{a.title}</h1>{fingerprintVerified&&<PrintButton/>}{a.status==='signed'&&!fingerprintVerified&&<p role="alert" style={{fontWeight:700,color:'#9b2226'}}>PDF export unavailable: the signature audit fingerprint could not be verified. Contact the administrator before issuing a copy.</p>}<p>Power Clean · {a.status}</p><div style={{whiteSpace:'pre-wrap',lineHeight:1.8}}>{a.body}</div><hr/>{a.contractor_signed_at&&<section><h2>Power Clean authorization</h2>{a.contractor_signature_image_data&&<img src={a.contractor_signature_image_data} alt="Power Clean owner handwritten signature" style={{width:'100%',maxWidth:360,height:'auto'}}/>}<p>Electronically signed by: <strong>{a.contractor_signer_name}</strong> — {a.contractor_signer_title}</p><p>Authorized: {new Date(a.contractor_signed_at).toLocaleString('en-US')}</p></section>}
+ {a.status==='signed'?<><h2>Signature record</h2><p>Signed by: {a.signer_name}</p><p>Signed: {a.signed_at?new Date(a.signed_at).toLocaleString('en-US'):'Unavailable'}</p><p>Electronic signature consent: {a.signer_acknowledged?'Acknowledged':'Not recorded'}</p>{a.marketing_photo_consent!==null&&<p>Marketing photo permission: <strong>{a.marketing_photo_consent?'Yes':'No'}</strong> (recorded with signature)</p>}<p>Document SHA-256: {a.signed_document_sha256}</p><p>Signing browser: {a.signer_user_agent||'Not recorded'}</p></>:<p>Not signed</p>}
+ {a.status==='draft'&&member.role==='owner'&&<DraftEditor id={a.id} initialBody={a.body}/>}
+ <p>Reference: {a.id}</p>{audit&&<p>Audit event: {audit.event_type} · {new Date(audit.signed_at).toLocaleString('en-US')}</p>}{a.status==='signed'&&<p><strong>Record verification:</strong> {fingerprintVerified?'Audit fingerprint matches signed agreement record.':'Audit fingerprint unavailable or does not match. Contact the administrator.'}</p>}<p className="print-hide">When verification succeeds, save a PDF using the button above. This is a printable record, not a digitally certified PDF.</p></section></main>;
+}
