@@ -36,3 +36,25 @@ test('liability draft uses same current customer and property',()=>{
 test('explicit TEST ONLY path creates both documents without estimate or schedule queries',async()=>{const h=harness();const r=await h.run('customer',true);assert.equal(r.serviceToken,'service_contract-token');assert.equal(r.liabilityToken,'liability_release-token');assert.equal(h.rows.length,2);for(const row of h.rows){assert.match(row.title,/^TEST ONLY/);assert.match(row.body,/NOT A LEGAL AGREEMENT/);}});
 
 test('deleted master drafts are excluded and both active agreements are prepared',async()=>{const h=harness([],false,['service_contract']);const r=await h.run('customer');assert.equal(r.serviceToken,'service_contract-token');assert.equal(r.liabilityToken,'liability_release-token');assert.equal(h.rows.length,3);assert.ok(h.rows.find(r=>r.id==='deleted-service_contract').deleted_at);});
+
+test('customer agreement links use the stable public app URL',async()=>{
+ const {getPublicAppUrl}=await import('../lib/public-app-url.ts');
+ const original=process.env.NEXT_PUBLIC_APP_URL;
+ try{
+  delete process.env.NEXT_PUBLIC_APP_URL;
+  assert.equal(getPublicAppUrl(),'https://power-clean-operations.vercel.app');
+  process.env.NEXT_PUBLIC_APP_URL='https://power-clean-operations-agyenx4cy-stacstoncarter-5554.vercel.app';
+  assert.equal(getPublicAppUrl(),'https://power-clean-operations.vercel.app');
+  process.env.NEXT_PUBLIC_APP_URL='https://app.powerclean.example/ignored/path';
+  assert.equal(getPublicAppUrl(),'https://app.powerclean.example');
+ }finally{
+  if(original===undefined)delete process.env.NEXT_PUBLIC_APP_URL;
+  else process.env.NEXT_PUBLIC_APP_URL=original;
+ }
+ const bundle=readFileSync(new URL('../app/agreements/bundle-button.tsx',import.meta.url),'utf8');
+ const single=readFileSync(new URL('../app/agreements/signing-link.tsx',import.meta.url),'utf8');
+ assert.doesNotMatch(bundle,/window\.location\.origin/);
+ assert.doesNotMatch(single,/window\.location\.origin/);
+ assert.match(bundle,/getPublicAppUrl\(\)/);
+ assert.match(single,/getPublicAppUrl\(\)/);
+});
