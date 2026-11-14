@@ -1,5 +1,6 @@
 'use server';
 import {createClient} from '@/lib/supabase/server';
+import {getPublicAppUrl} from '@/lib/public-app-url';
 
 /** Trial-only sending: explicitly allowlisted verified recipients, never arbitrary customer numbers. */
 export async function sendTrialAgreementSms(agreementId:string,token:string,recipient:string,consentConfirmed:boolean){
@@ -19,8 +20,7 @@ export async function sendTrialAgreementSms(agreementId:string,token:string,reci
  const hash=createHash('sha256').update(token).digest('hex');
  const {data:a}=await supabase.from('customer_agreements').select('id,status,signing_expires_at,signing_token_hash').is('deleted_at',null).eq('id',agreementId).eq('business_id',member.business_id).maybeSingle();
  if(!a||a.status!=='sent'||a.signing_token_hash!==hash||!a.signing_expires_at||Date.parse(a.signing_expires_at)<=Date.now())return {error:'Signing link is no longer valid. Prepare a new link.'};
- const base=process.env.NEXT_PUBLIC_APP_URL;
- if(!base||!/^https:\/\//.test(base))return {error:'Set NEXT_PUBLIC_APP_URL to the stable HTTPS app address before sending.'};
+ const base=getPublicAppUrl();
  const body=`Power Clean: Please review and sign your agreement: ${base.replace(/\/$/,'')}/sign/${token} Reply STOP to opt out.`;
  const params=new URLSearchParams({To:recipient,From:from,Body:body});
  try{
