@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import DiscountEditor from "./discount-editor";
+import DiscountBreakdown from "@/app/estimates/discount-breakdown";
 import ImageMeasurements from "./image-measurements";
 import { defaultGrowthPlan, growthProjection } from "@/lib/smart-estimate/growth";
 import { createClient } from "@/lib/supabase/client";
@@ -110,7 +112,8 @@ export default function SmartEstimate() {
     [savedEstimate, setSavedEstimate] = useState(""),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState(""),
-    [loadError, setLoadError] = useState("");
+    [loadError, setLoadError] = useState(""),
+    [canOverride, setCanOverride] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string; service_address: string | null }[]>(
       [],
     ),
@@ -140,11 +143,12 @@ export default function SmartEstimate() {
       }
       const { data: m } = await db
         .from("business_members")
-        .select("business_id")
+        .select("business_id,role")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
       if (!m) return;
+      setCanOverride(["owner", "admin"].includes(m.role));
       const { data, error } = await db
         .from("customers")
         .select("id,name,service_address")
@@ -164,6 +168,7 @@ export default function SmartEstimate() {
           if (loaded.snapshot) {
             setDraft(parseDraft(loaded.snapshot));
             if (params.get("revise") === "1" && loaded.estimateId) {
+              setDraft({ ...parseDraft(loaded.snapshot), minimumOverrideReason: "" });
               setMessage("Editing a copy. Finalize it and send a new approval link for the revised price.");
             } else {
               setDraftId(requested);
@@ -212,7 +217,12 @@ export default function SmartEstimate() {
     }
   }, [draft]);
   const change = (p: Partial<Draft>) => {
-    setDraft((d) => (d ? { ...d, ...p } : d));
+    setDraft((d) => d ? {
+      ...d,
+      ...(p.areas || p.config || p.discounts || p.customerId !== undefined || p.serviceAddressId !== undefined
+        ? { minimumOverrideReason: "" } : {}),
+      ...p,
+    } : d);
     setMessage("Unsaved changes");
   };
   const config = (p: Partial<Config>) =>
@@ -288,6 +298,7 @@ export default function SmartEstimate() {
   const r = result?.value,
     c = draft.config,
     locked = Boolean(savedEstimate);
+  const blocked = Boolean(r?.errors.length || (r?.belowMinimum && !canOverride && !locked));
   return (
     <main className="workspace smart-estimate">
       <style>{`.smart-estimate input:not([type=checkbox]),.smart-estimate select,.smart-estimate textarea{display:block;width:100%;min-width:0;padding:10px;border:1px solid #bacbd7;border-radius:6px;background:white;color:#172d3a}.smart-estimate label{display:block;min-width:0}.smart-estimate fieldset{border:1px solid #c9d7e1;border-radius:8px;min-width:0;padding:12px}.smart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:14px}.smart-flex{display:flex;flex-wrap:wrap;gap:12px}.smart-flex>label{flex:1;min-width:90px}.smart-area{border-top:3px solid #0871bd;margin-top:20px;padding-top:16px}.smart-estimate summary{cursor:pointer;font-weight:700;padding:12px 0}.smart-estimate table{border-collapse:collapse;width:100%}.smart-estimate td,.smart-estimate th{text-align:left;padding:10px;border-bottom:1px solid #d5dfe6}.smart-scroll{overflow-x:auto}.smart-alert{border-left:4px solid #b65117;padding:12px;background:#fff6eb}.smart-total{font-size:1.8rem;color:#0069b4}.customer-print{display:none}@media print{body *{visibility:hidden}.customer-print,.customer-print *{visibility:visible}.customer-print{display:block;position:absolute;inset:0;padding:20px;background:white}.smart-screen{display:none!important}.customer-print table{width:100%}@page{size:letter;margin:15mm}}`}</style>
@@ -968,8 +979,7 @@ export default function SmartEstimate() {
             </div>
             <p>
               Planning defaults from the Power Clean truck-and-repair plan: equipment $8/hour (including repair and upgrade allowances), local job fuel $15, overhead $9.25/hour at 24 billable hours/month excluding advertising, 10% SH $15/gallon, and surfactant $35/gallon. These are not verified purchase costs; review receipts, actual bills, fuel usage, and the effect of advertising before checking costs reviewed. Labor uses the editable base rate: at $30/hour, light work is $25/hour, moderate is $30/hour, and heavy is $35/hour. Severity also estimates 1, 2, or 3 application passes respectively; verify actual passes and product coats against the job and label before approval. Price = operating cost ÷ (1 − margin). A 30% margin is a 42.86%
-              markup. Shared costs and the job minimum apply once. No discounts
-              are applied that could silently reduce your target margin.
+              markup. Shared costs and the job minimum apply once.
             </p>
             <label>
               <input
@@ -991,7 +1001,13 @@ export default function SmartEstimate() {
         </fieldset>
         <section className="panel">
           <h2>Calculation & review</h2>
+          <DiscountEditor entries={draft.discounts ?? []} areas={draft.areas}
+            overrideReason={draft.minimumOverrideReason ?? ""} belowMinimum={Boolean(r?.belowMinimum)}
+            canOverride={canOverride} disabled={locked || busy}
+            onChange={discounts => change({ discounts })}
+            onOverride={minimumOverrideReason => change({ minimumOverrideReason })} />
           {result?.error && <p role="alert">{result.error}</p>}
+          {r?.belowMinimum && !canOverride && !locked && <p role="alert">Only an owner or admin can authorize pricing below the minimum.</p>}
           {r && (
             <>
               <p>
@@ -1036,8 +1052,15 @@ export default function SmartEstimate() {
                 Total chemicals {usd(r.chemicalCost)} · Solution {r.totalSolutionGal.toFixed(2)} gal · Operating cost {usd(r.cost)} · Operating profit {usd(r.profit)}{" "}
                 · Margin {r.margin.toFixed(2)}% · Markup {r.markup.toFixed(2)}%
               </p>
+              {r.discount > 0 && <>
+                {r.margin < c.margin && <p role="status" className="smart-alert">
+                  Operating margin is {r.margin.toFixed(2)}%, below the {c.margin}% target.
+                </p>}
+                <p>Subtotal before discounts: {usd(r.subtotal)}</p>
+                <DiscountBreakdown details={r.discountDetails} total={r.discount} />
+              </>}
               <p className="smart-total">
-                {r.errors.length ? "Provisional total" : "Customer total"}:{" "}
+                {blocked ? "Provisional total" : "Customer total"}:{" "}
                 {usd(r.total)}
               </p>
               {r.errors.length > 0 && (
@@ -1121,7 +1144,7 @@ export default function SmartEstimate() {
                 !draft.customerId ||
                 !draft.serviceAddressId ||
                 !r ||
-                Boolean(r.errors.length)
+                blocked
               }
               onClick={() => perform(true)}
             >
@@ -1131,7 +1154,7 @@ export default function SmartEstimate() {
               type="button"
               disabled={
                 !r ||
-                Boolean(r.errors.length) ||
+                blocked ||
                 !draft.customerId ||
                 !draft.serviceAddressId
               }
@@ -1151,14 +1174,14 @@ export default function SmartEstimate() {
                 Download saved PDF
               </Link>
               {" · "}
-              <Link href={"/estimates/smart?draft=" + draftId + "&revise=1"}>
+              <a href={"/estimates/smart?draft=" + draftId + "&revise=1"}>
                 Revise estimate
-              </Link>
+              </a>
             </p>
           )}
         </section>
       </div>
-      {r && !r.errors.length && (
+      {r && !blocked && (
         <article className="customer-print">
           <img
             src={POWER_CLEAN_LOGO}
@@ -1193,6 +1216,10 @@ export default function SmartEstimate() {
               ))}
             </tbody>
           </table>
+          {r.discount > 0 && <>
+            <p>Subtotal: {usd(r.subtotal)}</p>
+            <DiscountBreakdown details={r.discountDetails} total={r.discount} />
+          </>}
           <h2>Total: {usd(r.total)}</h2>
           <p>{draft.notes}</p>
           <footer>Stacston Carter — Owner, Power Clean</footer>

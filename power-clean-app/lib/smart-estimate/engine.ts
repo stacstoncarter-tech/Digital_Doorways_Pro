@@ -1,3 +1,4 @@
+import { applyDiscounts, type Discount } from "./discounts.ts";
 /** Pure estimator. All defaults are editable planning assumptions, never label directions. */
 export const STAIR_MATERIALS = [
   "concrete",
@@ -113,6 +114,8 @@ export type Draft = {
   notes: string;
   areas: Area[];
   config: Config;
+  discounts?: Discount[];
+  minimumOverrideReason?: string;
 };
 export const money = (n: number) =>
   Math.round((n + Number.EPSILON) * 100) / 100;
@@ -625,10 +628,10 @@ export function calculate(draft: Draft) {
         (c.overheadHourly ?? 0)) +
     (c.fuel ?? 0);
   const cost = rows.reduce((n, r) => n + r.cost, 0) + sharedCost;
-  const total = money(Math.max(c.minimum, marginPrice(cost, c.margin)));
+  const baseTotal = money(Math.max(c.minimum, marginPrice(cost, c.margin)));
   // Allocate shared costs and the job minimum once using largest-remainder cents.
   const base = rows.reduce((n, r) => n + r.cost, 0),
-    cents = Math.round(total * 100);
+    cents = Math.round(baseTotal * 100);
   const allocations = rows.map((r, i) => {
     const share = cents * (base ? r.cost / base : 1 / rows.length);
     return { i, cents: Math.floor(share), fraction: share - Math.floor(share) };
@@ -641,7 +644,21 @@ export function calculate(draft: Draft) {
   allocations.forEach((x) => {
     rows[x.i].price = x.cents / 100;
   });
-  if (total > 10000000)
+  const promotion = applyDiscounts(draft.discounts, rows);
+  const total = promotion.total;
+  const belowMinimum = promotion.discount > 0 && total < money(c.minimum);
+  const overrideReason = draft.minimumOverrideReason ?? "";
+  if (typeof overrideReason !== "string" || overrideReason.length > 250)
+    throw Error("The minimum pricing override reason must be 250 characters or fewer.");
+  errors.push(...promotion.errors);
+  if (belowMinimum && !overrideReason.trim())
+    errors.push("The discounted total is below the job minimum. Reduce the discount or obtain an owner or admin override.");
+  if (total <= 0 && promotion.discount > 0)
+    errors.push("A discounted estimate must have a positive total.");
+  const actualMargin = total ? (100 * (total - cost)) / total : 0;
+  if (promotion.discount > 0 && actualMargin < c.margin)
+    warnings.push(`Discounts reduce operating margin to ${actualMargin.toFixed(2)}%, below the ${c.margin}% target.`);
+  if (baseTotal > 10000000)
     errors.push("Estimate exceeds the supported $10,000,000 limit.");
   return {
     rows,
@@ -650,8 +667,12 @@ export function calculate(draft: Draft) {
     cost: money(cost),
     sharedCost: money(sharedCost),
     total,
+    subtotal: promotion.subtotal,
+    discount: promotion.discount,
+    discountDetails: promotion.details,
+    belowMinimum,
     profit: money(total - cost),
-    margin: total ? (100 * (total - cost)) / total : 0,
+    margin: actualMargin,
     markup: cost ? (100 * (total - cost)) / cost : 0,
     hours: rows.reduce((n, r) => n + r.hours, 0) + sharedHours,
     laborHours: (rows.reduce((n, r) => n + r.hours, 0) + sharedHours) * c.crew,

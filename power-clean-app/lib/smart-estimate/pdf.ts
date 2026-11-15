@@ -6,6 +6,7 @@ export async function estimatePdf(
   address: string,
   reference: string,
   logo: Uint8Array,
+  status?: string,
 ) {
   const r = calculate(d);
   if (r.errors.length) throw Error("Estimate has unresolved validation.");
@@ -60,6 +61,8 @@ export async function estimatePdf(
   line("Prepared for: " + customer, 12, true);
   wrap("Service address: " + address);
   line("Reference: " + reference, 9);
+  if (status === "accepted" || status === "declined")
+    line("Estimate status: " + status, 11, true);
   y -= 16;
   for (const x of r.rows) {
     wrap(x.description);
@@ -67,6 +70,12 @@ export async function estimatePdf(
       wrap(x.dimensions + " | " + x.area.toFixed(2) + " sq ft");
     line("Amount: " + usd(x.price), 12, true);
     y -= 8;
+  }
+  if (r.discount > 0) {
+    line("Subtotal: " + usd(r.subtotal));
+    for (const detail of r.discountDetails)
+      wrap(detail.label.replace(" · ", " - ") + " - " + usd(detail.amount));
+    line("Total discounts: -" + usd(r.discount), 11, true);
   }
   line("TOTAL: " + usd(r.total), 18, true);
   y -= 12;
