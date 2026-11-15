@@ -36,10 +36,50 @@ export const TREATMENTS = [
 ] as const;
 export type Treatment = (typeof TREATMENTS)[number];
 export type Measurement = { ft: number; inches: number };
+export const CANOPY_FACES = {
+  top: "Top surface",
+  underside: "Underside",
+  front: "Front fascia",
+  rear: "Rear fascia",
+  left: "Left side panel (including triangular sides)",
+  right: "Right side panel (including triangular sides)",
+  leftRoof: "Left sloped roof section",
+  rightRoof: "Right sloped roof section",
+  supports: "Structural supports (combined exposed width)",
+} as const;
+export type CanopyFace = {
+  shape: "rectangle" | "triangle" | "trapezoid" | "sloped";
+  length: Measurement;
+  width: Measurement;
+  secondBase: Measurement;
+};
+export type CanopyFaces = Partial<Record<keyof typeof CANOPY_FACES, CanopyFace>>;
+
+function canopyGeometry(faces: CanopyFaces = {}) {
+  if (!faces || typeof faces !== "object" || Array.isArray(faces)) throw Error("Invalid canopy faces.");
+  if (faces.top && (faces.leftRoof || faces.rightRoof))
+    throw Error("Select either the whole top or individual roof sections.");
+  const parts: Record<string, number> = {};
+  for (const [key, face] of Object.entries(faces)) {
+    if (!Object.prototype.hasOwnProperty.call(CANOPY_FACES, key)) throw Error("Unknown canopy face.");
+    const length = measure(face.length);
+    const width = measure(face.width);
+    const secondBase = face.shape === "trapezoid" ? measure(face.secondBase) : 0;
+    if (!["rectangle", "triangle", "trapezoid", "sloped"].includes(face.shape))
+      throw Error("Unknown canopy shape.");
+    if (!length || !width || (face.shape === "trapezoid" && !secondBase))
+      throw Error("Enter all dimensions for " + CANOPY_FACES[key as keyof CanopyFaces] + ".");
+    parts[key] = face.shape === "triangle" ? length * width / 2
+      : face.shape === "trapezoid" ? (length + secondBase) * width / 2
+      : length * width;
+  }
+  return { area: Object.values(parts).reduce((sum, part) => sum + part, 0), parts };
+}
 export type Area = {
   id: string;
   name: string;
-  kind: "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
+  kind: "canopy" | "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
+  canopyFaces?: CanopyFaces;
   material: string;
   confirmedSquareFeet?: number;
   measurementSource?: string;
@@ -145,6 +185,7 @@ export function geometry(a: Area) {
     d = measure(a.depth);
   if (a.confirmedSquareFeet !== undefined && (a.kind !== "rectangle" || !Number.isFinite(a.confirmedSquareFeet) || a.confirmedSquareFeet <= 0 || a.confirmedSquareFeet > 1e8)) throw Error("Invalid confirmed square footage.");
   if (a.measurementSource !== undefined && (typeof a.measurementSource !== "string" || a.measurementSource.length > 500)) throw Error("Invalid measurement source.");
+  if (a.kind === "canopy") return canopyGeometry(a.canopyFaces);
   if (a.kind === "rectangle") {const area=a.confirmedSquareFeet ?? l*w;return { area, parts: { surface: area } };}
   if (isElevation(a.kind)) return {area:l*h,parts:{wall:l*h}};
   if (a.kind === "gable") return {area:l*h+l*d/2,parts:{wall:l*h,gable:l*d/2}};
@@ -401,7 +442,7 @@ export function calculate(draft: Draft) {
       throw Error("Invalid area identity or safety checks.");
     if (!a.name?.trim() || a.name.length > 80)
       errors.push("Each area needs a name of at most 80 characters.");
-    const { area } = geometry(a);
+    const { area, parts } = geometry(a);
     if (area <= 0 || area > 1e7)
       errors.push(a.name + ": enter positive dimensions.");
     if (
@@ -556,7 +597,9 @@ export function calculate(draft: Draft) {
         (concentrateGal * ((p.price ?? 0) + (p.shipping ?? 0))) /
           p.containerGal +
         (surfactantOz / 128) * (c.surfactantPrice ?? 0);
-      const detail = isMonument
+      const detail = a.kind === "canopy" && t === a.treatments[0]
+        ? nonnegative(a.accessMinutes, "ladder/access minutes") / 60
+        : isMonument
         ? (nonnegative(a.detailMinutes, "detail minutes") +
             nonnegative(a.accessMinutes, "access minutes")) /
           60
@@ -578,6 +621,10 @@ export function calculate(draft: Draft) {
           ? `Confirmed area: ${a.confirmedSquareFeet} sq ft`
           : a.kind === "rectangle"
           ? `${a.length.ft} ft ${a.length.inches} in × ${a.width.ft} ft ${a.width.inches} in`
+          : a.kind === "canopy"
+            ? Object.entries(parts)
+              .map(([key, size]) => CANOPY_FACES[key as keyof CanopyFaces] + " " + size.toFixed(2) + " sq ft")
+              .join(", ")
           : isElevation(a.kind)
             ? `Wall width ${a.length.ft} ft ${a.length.inches} in × wall height ${a.height.ft} ft ${a.height.inches} in`
           : a.kind === "gable"
@@ -594,7 +641,7 @@ export function calculate(draft: Draft) {
                 .join(", ")}`;
       rows.push({
         key: a.id + ":" + t.type,
-        description: `${a.name}${a.kind in EXTERIOR_KINDS ? " — "+EXTERIOR_KINDS[a.kind as keyof typeof EXTERIOR_KINDS] : ""} — ${t.type} (${MATERIAL_LABELS[a.material]||a.material})`,
+        description: `${a.name}${a.kind === "canopy" ? " — Awning / Entry Canopy" : a.kind in EXTERIOR_KINDS ? " — "+EXTERIOR_KINDS[a.kind as keyof typeof EXTERIOR_KINDS] : ""} — ${t.type} (${MATERIAL_LABELS[a.material]||a.material})`,
         area: treated,
         hours,
         laborHours: hours * c.crew,
