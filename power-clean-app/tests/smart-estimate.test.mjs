@@ -311,3 +311,81 @@ test("truck and repair plan defaults are editable but not automatically approved
   assert.equal(c.products.organic.productVerified, false);
   assert.equal(c.products.organic.assumptionsReviewed, false);
 });
+
+const promotion = (properties = {}) => ({
+  id: "discount-1",
+  category: "seasonal",
+  method: "fixed",
+  value: 10,
+  serviceKey: null,
+  reason: "Test winter offer",
+  ...properties,
+});
+
+test("service discounts apply before estimate discounts and round to cents", () => {
+  const d = fixture();
+  const second = newArea();
+  second.length.ft = 15;
+  second.width.ft = 25;
+  d.areas.push(second);
+  const base = calculate(d);
+  d.discounts = [
+    promotion({ method: "percent", value: 10 }),
+    promotion({ id: "service-offer", category: "multi-service", serviceKey: base.rows[0].key }),
+  ];
+  const result = calculate(d);
+  const wholeSavings = Math.round((Math.round(base.total * 100) - 1000) / 10) / 100;
+  assert.deepEqual(result.discountDetails.map(entry => entry.amount), [10, wholeSavings]);
+  assert.match(result.discountDetails[0].label, /Multi-service discount/);
+  assert.match(result.discountDetails[1].label, /Seasonal promotion \(10%\).*Entire estimate/);
+  close(result.total, base.total - 10 - wholeSavings);
+  assert.equal(result.subtotal, base.total);
+  assert.equal(result.cost, base.cost);
+  assert.equal(result.sharedCost, base.sharedCost);
+  assert.equal(result.chemicalCost, base.chemicalCost);
+  assert.deepEqual(result.rows, base.rows);
+  assert.ok(result.margin < base.margin);
+  assert.ok(result.warnings.some(warning => warning.includes("below the 30% target")));
+  assert.equal(result.errors.length, 0);
+});
+
+test("below-minimum promotions require an explicit reason and cannot zero the estimate", () => {
+  const d = fixture();
+  d.config.minimum = 250;
+  d.discounts = [promotion()];
+  assert.match(calculate(d).errors.join(" "), /below the job minimum/);
+  d.minimumOverrideReason = "Owner approved launch promotion";
+  assert.equal(calculate(d).errors.length, 0);
+  assert.equal(calculate(d).total, 240);
+  assert.equal(calculate(d).belowMinimum, true);
+  d.discounts = [promotion({ value: 250 })];
+  assert.match(calculate(d).errors.join(" "), /must have a positive total/);
+});
+
+test("discount draft roundtrip retains scope, eligibility category, and private reason", () => {
+  const d = fixture();
+  const base = calculate(d);
+  d.discounts = [promotion({ serviceKey: base.rows[0].key, category: "first-time", value: 5 })];
+  const restored = parseDraft(JSON.parse(JSON.stringify(d)));
+  assert.deepEqual(restored.discounts, d.discounts);
+  const result = calculate(restored);
+  assert.equal(result.total, base.total - 5);
+  assert.ok(!JSON.stringify(result.discountDetails).includes(d.discounts[0].reason));
+});
+
+test("invalid amounts, removed services, and ineligible multi-service discounts block finalization", () => {
+  const d = fixture();
+  const key = calculate(d).rows[0].key;
+  for (const [entry, expected] of [
+    [promotion({ serviceKey: "removed" }), /existing service/],
+    [promotion({ value: 900, serviceKey: key }), /fit the remaining price/],
+    [promotion({ category: "multi-service" }), /at least two services/],
+    [promotion({ reason: "  " }), /internal reason/],
+    [promotion({ value: 3.001 }), /two decimal places/],
+  ]) {
+    d.discounts = [entry];
+    assert.match(calculate(d).errors.join(" "), expected);
+  }
+  d.discounts = [promotion({ method: "percent", value: 101 })];
+  assert.throws(() => parseDraft(d), /Check discount/);
+});

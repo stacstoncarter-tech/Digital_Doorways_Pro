@@ -29,7 +29,7 @@ export async function GET(request: Request) {
     return new Response("Saved estimate not found", { status: 404 });
   const { data: estimate } = await db
     .from("estimates")
-    .select("id")
+    .select("id,status")
     .eq("id", s.estimate_id)
     .eq("business_id", m.business_id)
     .is("deleted_at", null)
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
       a?.address ?? "",
       s.estimate_id,
       logo,
+      estimate.status,
     );
     return new Response(Buffer.from(bytes), {
       headers: {
