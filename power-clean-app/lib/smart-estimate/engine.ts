@@ -451,6 +451,14 @@ export function calculate(draft: Draft) {
         throw Error("Check treatment coverage and severity.");
       const p = c.products[t.type];
       if (!p) throw Error("Missing product settings.");
+      const vinylRust = t.type === "rust" && a.material === "vinyl-siding";
+      const vinylRustProduct = p.name.includes("Rust Remedy") && [
+        "https://www.amazon.com/dp/B0FFQ7PLWF",
+        "https://southeastsoftwash.com/products/rust-remedy-non-toxic-stain-remover",
+      ].includes(p.url.split(/[?#]/)[0]);
+      if (vinylRust && (!vinylRustProduct || !a.safety.testPatch || !a.safety.label)) {
+        errors.push(a.name + ": verify Southeast Softwash Rust Remedy and review a compatible test patch and label before finalizing vinyl rust treatment.");
+      }
       for (const k of [
         "containerGal",
         "coverage",
@@ -485,7 +493,7 @@ export function calculate(draft: Draft) {
       if (t.type === "wood" && a.material !== "wood")
         errors.push(a.name + ": Wood Wizard requires wood.");
       if (
-        (t.type === "clay" || t.type === "rust" || t.type === "seal") &&
+        (t.type === "clay" || (t.type === "rust" && !vinylRust) || t.type === "seal") &&
         !["concrete", "brick", "pavers"].includes(a.material)
       )
         errors.push(
@@ -511,7 +519,7 @@ export function calculate(draft: Draft) {
         p.url.length > 2000
       )
         throw Error("Invalid product identification.");
-      if(t.type==='rust'&&(!/^https:\/\/(?:www\.)?(?:amazon\.[a-z.]+|a\.co|amzn\.to)\//i.test(p.url)||p.name.includes('identification required')))errors.push('Identify the previously selected Amazon rust product and its exact listing before finalizing.');
+      if(t.type==='rust'&&!(vinylRust && vinylRustProduct)&&(!/^https:\/\/(?:www\.)?(?:amazon\.[a-z.]+|a\.co|amzn\.to)\//i.test(p.url)||p.name.includes('identification required')))errors.push('Identify the previously selected Amazon rust product and its exact listing before finalizing.');
       if(t.type==='memorial'&&p.name.includes('verify label'))errors.push('Enter the exact conservation cleaner name before finalizing.');
       const factor = c.materialFactors[a.material];
       if (!Number.isFinite(factor) || factor <= 0 || factor > 10)
@@ -526,7 +534,7 @@ export function calculate(draft: Draft) {
         p.coats *
         passes *
         (1 + c.wastePercent / 100);
-      let fraction = p.productParts / (p.productParts + p.waterParts),
+      let fraction = vinylRust && vinylRustProduct ? 0.5 : p.productParts / (p.productParts + p.waterParts),
         surfactantOz = 0;
       if (t.type === "organic") {
         const target = c.targetSH[a.material];
