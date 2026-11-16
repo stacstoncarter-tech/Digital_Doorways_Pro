@@ -2,7 +2,7 @@
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
 import {serviceTimeToIso} from '@/lib/schedule-time';
-type Result={error?:string;success?:boolean};
+type Result={error?:string;success?:boolean;jobId?:string};
 async function context(){
  const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();
  if(!user)return null;
@@ -15,12 +15,26 @@ export async function createJobFromEstimate(estimateId:string):Promise<Result>{
  if(!/^[0-9a-f-]{36}$/i.test(estimateId))return {error:'Invalid estimate.'};
  const {data:e}=await ctx.supabase.from('estimates').select('id,customer_id,service_address_id,status').is('deleted_at',null).eq('id',estimateId).eq('business_id',ctx.member.business_id).maybeSingle();
  if(!e||e.status!=='accepted')return {error:'Only accepted estimates can become jobs.'};
- const {data:existing}=await ctx.supabase.from('jobs').select('id').is('deleted_at',null).eq('business_id',ctx.member.business_id).eq('estimate_id',e.id).limit(1).maybeSingle();
- if(existing)return {error:'A job already exists for this estimate.'};
- const {error}=await ctx.supabase.from('jobs').insert({business_id:ctx.member.business_id,customer_id:e.customer_id,estimate_id:e.id,service_address_id:e.service_address_id,created_by:ctx.user.id});
- if(error)return {error:error.code==='23505'?'A job already exists for this estimate.':'Could not create job.'};
- revalidatePath('/jobs');revalidatePath('/estimates/history');
- return {success:true};
+ const findExistingJob=()=>ctx.supabase.from('jobs').select('id').is('deleted_at',null)
+  .eq('business_id',ctx.member.business_id).eq('estimate_id',e.id).limit(1).maybeSingle();
+ const {data:existing,error:lookupError}=await findExistingJob();
+ if(lookupError)return {error:'Could not check for an existing job. Try again.'};
+ if(existing)return {success:true,jobId:existing.id};
+
+ const {data:job,error}=await ctx.supabase.from('jobs').insert({
+  business_id:ctx.member.business_id,customer_id:e.customer_id,estimate_id:e.id,
+  service_address_id:e.service_address_id,created_by:ctx.user.id
+ }).select('id').single();
+ if(error?.code==='23505'){
+  const {data:existingJob}=await findExistingJob();
+  if(existingJob)return {success:true,jobId:existingJob.id};
+  return {error:'A job for this estimate may be in Trash. Check Trash and restore it to continue.'};
+ }
+ if(error||!job)return {error:'Could not create the job. Refresh Saved Estimates and try again.'};
+
+ revalidatePath('/jobs');
+ revalidatePath('/estimates/history');
+ return {success:true,jobId:job.id};
 }
 export async function updateJob(_state:{error:string;success:string},form:FormData):Promise<{error:string;success:string}>{
  const ctx=await context();if(!ctx)return {error:'Access denied.',success:''};
@@ -46,8 +60,8 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
    const isTestOnlyBundle=testTypes.has('service_contract')&&testTypes.has('liability_release');
    if(testScheduling&&ctx.member.role==='owner'&&status==='scheduled'&&isTestOnlyBundle){
     const testNotes='[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK] '+notes;
-    const {error:testError}=await ctx.supabase.from('jobs').update({status,notes:testNotes,scheduled_start:startIso,scheduled_end:endIso,completed_at:null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
-    if(testError)return {error:'Could not save test schedule.',success:''};
+    const {data:savedTest,error:testError}=await ctx.supabase.from('jobs').update({status,notes:testNotes,scheduled_start:startIso,scheduled_end:endIso,completed_at:null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
+    if(testError||!savedTest)return {error:'Could not save test schedule.',success:''};
     revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);
     return {error:'',success:'TEST ONLY schedule saved. This does not authorize real customer work.'};
    }
@@ -59,7 +73,7 @@ export async function updateJob(_state:{error:string;success:string},form:FormDa
   }
  }
  if((old.notes||'').startsWith('[TEST ONLY — NOT AUTHORIZED FOR CUSTOMER WORK]')&&status!=='canceled')return {error:'This is a TEST ONLY job. It cannot be converted into real customer work; create a separate production job with approved agreements.',success:''};
- const {error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
- if(error)return {error:'Could not update job.',success:''};
- revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);return {error:'',success:'Job updated.'};
+ const {data:saved,error}=await ctx.supabase.from('jobs').update({status,notes,scheduled_start:startIso,scheduled_end:endIso,completed_at:status==='completed'?(old.completed_at||new Date().toISOString()):null,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id).select('id').maybeSingle();
+ if(error||!saved)return {error:'Could not save this job. Refresh and check that the job is still available and editable.',success:''};
+ revalidatePath('/jobs');revalidatePath('/jobs/calendar');revalidatePath('/jobs/'+id);return {error:'',success:status==='scheduled'?'Job scheduled.':status==='unscheduled'&&startIso?'Proposed service dates saved. Job is still unscheduled.':'Job updated.'};
 }

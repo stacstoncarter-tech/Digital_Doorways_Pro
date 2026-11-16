@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import {useState,useTransition} from 'react';
 import {prepareAgreementBundle,testRollbackSafeguard} from './bundle-actions';
+import {getPublicAppUrl} from '@/lib/public-app-url';
 export default function BundleButton({customerId,name,email,phone}:{customerId:string;name:string;email?:string|null;phone?:string|null}){
  const [pending,start]=useTransition();
  const [link,setLink]=useState('');
@@ -12,7 +13,7 @@ export default function BundleButton({customerId,name,email,phone}:{customerId:s
  const prepare=(testing:boolean)=>start(async()=>{
   if(!window.confirm(testing?'Prepare two TEST ONLY signing documents for this disposable customer? No services or payment are authorized.':'Confirm you have reviewed and approved BOTH customer agreements. Missing documents will be created from the current templates. Nothing is emailed or texted automatically. Continue?'))return;
   setError('');setLink('');setPreparedTest(testing);
-  try{const result=await prepareAgreementBundle(customerId,testing);if(result.serviceToken&&result.liabilityToken){const p=new URLSearchParams({service:result.serviceToken,liability:result.liabilityToken});setLink(window.location.origin+'/sign/bundle?'+p.toString());}else setError(result.error||'Could not prepare both agreements.');}catch{setError('The signing bundle could not be prepared. Please try again.');}
+  try{const result=await prepareAgreementBundle(customerId,testing);if(result.serviceToken&&result.liabilityToken){const p=new URLSearchParams({service:result.serviceToken,liability:result.liabilityToken});setLink(getPublicAppUrl()+'/sign/bundle?'+p.toString());}else setError(result.error||'Could not prepare both agreements.');}catch{setError('The signing bundle could not be prepared. Please try again.');}
  });
  return <div style={{display:'grid',gap:8,marginBottom:12,maxWidth:650}}>
  <p><strong>Selected customer: {name}</strong></p>

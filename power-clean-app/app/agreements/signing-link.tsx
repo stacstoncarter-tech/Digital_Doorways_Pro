@@ -2,6 +2,7 @@
 import {useState,useTransition} from 'react';
 import {prepareSigningLink} from './signing-actions';
 import {sendTrialAgreementSms} from './sms-actions';
+import {getPublicAppUrl} from '@/lib/public-app-url';
 export default function SigningLink({id,email,phone,customerName,reissue=false}:{id:string;email?:string|null;phone?:string|null;customerName?:string;reissue?:boolean}){
  const [pending,start]=useTransition();
  const [link,setLink]=useState('');
@@ -18,7 +19,7 @@ export default function SigningLink({id,email,phone,customerName,reissue=false}:
  if(!window.confirm('I have reviewed this agreement and approve applying my Power Clean electronic signature. Prepare the signing link?')){setMessage('Signing link preparation canceled.');return;}
  let result;
  try{result=await prepareSigningLink(id,reissue);}catch{setMessage('Unable to prepare the link. Refresh the page and try again.');return;}
- if(result.token){setCopied(false);setLink(window.location.origin+'/sign/'+result.token);setMessage('Signing link ready. Choose how to share it. Sending is manual.');}
+ if(result.token){setCopied(false);setLink(getPublicAppUrl()+'/sign/'+result.token);setMessage('Signing link ready. Choose how to share it. Sending is manual.');}
  else setMessage(result.error||'Could not create link.');
  })}>{pending?'Preparing…':reissue?'Replace signing link':'Prepare signing link'}</button>
  {link&&<div style={{display:'grid',gap:8,marginTop:8,maxWidth:650}}>

@@ -16,7 +16,7 @@ async function context() {
     .maybeSingle();
   if (!m || !["owner", "admin", "staff"].includes(m.role))
     throw Error("Estimate access required.");
-  return { db, user, businessId: m.business_id as string };
+  return { db, user, businessId: m.business_id as string, role: m.role as string };
 }
 async function validateCustomer(
   d: Draft,
@@ -122,6 +122,14 @@ export async function finalizeSmartEstimate(value: unknown, id?: string) {
     if (!d.serviceAddressId)
       throw Error("Choose a service address before finalizing.");
     if (r.errors.length) throw Error(r.errors.join(" "));
+    if (r.belowMinimum && !["owner", "admin"].includes(ctx.role))
+      throw Error("Only an owner or admin can authorize pricing below the minimum.");
+    // Recompute discount amounts and public labels from validated inputs on every finalization.
+    const snapshot = {
+      ...d,
+      minimumOverrideReason: r.belowMinimum ? d.minimumOverrideReason?.trim() : undefined,
+      discountDetails: r.discountDetails,
+    };
     const items = r.rows.map((x) => ({
       description: (
         x.description +
@@ -135,7 +143,7 @@ export async function finalizeSmartEstimate(value: unknown, id?: string) {
       p_draft_id: id || null,
       p_customer_id: d.customerId,
       p_address_id: d.serviceAddressId === CUSTOMER_SERVICE_ADDRESS ? null : d.serviceAddressId,
-      p_snapshot: d,
+      p_snapshot: snapshot,
       p_items: items,
     });
     if (error) throw error;

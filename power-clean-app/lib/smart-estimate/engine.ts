@@ -1,3 +1,4 @@
+import { applyDiscounts, type Discount } from "./discounts.ts";
 /** Pure estimator. All defaults are editable planning assumptions, never label directions. */
 export const STAIR_MATERIALS = [
   "concrete",
@@ -35,10 +36,50 @@ export const TREATMENTS = [
 ] as const;
 export type Treatment = (typeof TREATMENTS)[number];
 export type Measurement = { ft: number; inches: number };
+export const CANOPY_FACES = {
+  top: "Top surface",
+  underside: "Underside",
+  front: "Front fascia",
+  rear: "Rear fascia",
+  left: "Left side panel (including triangular sides)",
+  right: "Right side panel (including triangular sides)",
+  leftRoof: "Left sloped roof section",
+  rightRoof: "Right sloped roof section",
+  supports: "Structural supports (combined exposed width)",
+} as const;
+export type CanopyFace = {
+  shape: "rectangle" | "triangle" | "trapezoid" | "sloped";
+  length: Measurement;
+  width: Measurement;
+  secondBase: Measurement;
+};
+export type CanopyFaces = Partial<Record<keyof typeof CANOPY_FACES, CanopyFace>>;
+
+function canopyGeometry(faces: CanopyFaces = {}) {
+  if (!faces || typeof faces !== "object" || Array.isArray(faces)) throw Error("Invalid canopy faces.");
+  if (faces.top && (faces.leftRoof || faces.rightRoof))
+    throw Error("Select either the whole top or individual roof sections.");
+  const parts: Record<string, number> = {};
+  for (const [key, face] of Object.entries(faces)) {
+    if (!Object.prototype.hasOwnProperty.call(CANOPY_FACES, key)) throw Error("Unknown canopy face.");
+    const length = measure(face.length);
+    const width = measure(face.width);
+    const secondBase = face.shape === "trapezoid" ? measure(face.secondBase) : 0;
+    if (!["rectangle", "triangle", "trapezoid", "sloped"].includes(face.shape))
+      throw Error("Unknown canopy shape.");
+    if (!length || !width || (face.shape === "trapezoid" && !secondBase))
+      throw Error("Enter all dimensions for " + CANOPY_FACES[key as keyof CanopyFaces] + ".");
+    parts[key] = face.shape === "triangle" ? length * width / 2
+      : face.shape === "trapezoid" ? (length + secondBase) * width / 2
+      : length * width;
+  }
+  return { area: Object.values(parts).reduce((sum, part) => sum + part, 0), parts };
+}
 export type Area = {
   id: string;
   name: string;
-  kind: "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
+  kind: "canopy" | "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
+  canopyFaces?: CanopyFaces;
   material: string;
   confirmedSquareFeet?: number;
   measurementSource?: string;
@@ -113,6 +154,8 @@ export type Draft = {
   notes: string;
   areas: Area[];
   config: Config;
+  discounts?: Discount[];
+  minimumOverrideReason?: string;
 };
 export const money = (n: number) =>
   Math.round((n + Number.EPSILON) * 100) / 100;
@@ -142,6 +185,7 @@ export function geometry(a: Area) {
     d = measure(a.depth);
   if (a.confirmedSquareFeet !== undefined && (a.kind !== "rectangle" || !Number.isFinite(a.confirmedSquareFeet) || a.confirmedSquareFeet <= 0 || a.confirmedSquareFeet > 1e8)) throw Error("Invalid confirmed square footage.");
   if (a.measurementSource !== undefined && (typeof a.measurementSource !== "string" || a.measurementSource.length > 500)) throw Error("Invalid measurement source.");
+  if (a.kind === "canopy") return canopyGeometry(a.canopyFaces);
   if (a.kind === "rectangle") {const area=a.confirmedSquareFeet ?? l*w;return { area, parts: { surface: area } };}
   if (isElevation(a.kind)) return {area:l*h,parts:{wall:l*h}};
   if (a.kind === "gable") return {area:l*h+l*d/2,parts:{wall:l*h,gable:l*d/2}};
@@ -398,7 +442,7 @@ export function calculate(draft: Draft) {
       throw Error("Invalid area identity or safety checks.");
     if (!a.name?.trim() || a.name.length > 80)
       errors.push("Each area needs a name of at most 80 characters.");
-    const { area } = geometry(a);
+    const { area, parts } = geometry(a);
     if (area <= 0 || area > 1e7)
       errors.push(a.name + ": enter positive dimensions.");
     if (
@@ -448,6 +492,14 @@ export function calculate(draft: Draft) {
         throw Error("Check treatment coverage and severity.");
       const p = c.products[t.type];
       if (!p) throw Error("Missing product settings.");
+      const vinylRust = t.type === "rust" && a.material === "vinyl-siding";
+      const vinylRustProduct = p.name.includes("Rust Remedy") && [
+        "https://www.amazon.com/dp/B0FFQ7PLWF",
+        "https://southeastsoftwash.com/products/rust-remedy-non-toxic-stain-remover",
+      ].includes(p.url.split(/[?#]/)[0]);
+      if (vinylRust && (!vinylRustProduct || !a.safety.testPatch || !a.safety.label)) {
+        errors.push(a.name + ": verify Southeast Softwash Rust Remedy and review a compatible test patch and label before finalizing vinyl rust treatment.");
+      }
       for (const k of [
         "containerGal",
         "coverage",
@@ -482,7 +534,7 @@ export function calculate(draft: Draft) {
       if (t.type === "wood" && a.material !== "wood")
         errors.push(a.name + ": Wood Wizard requires wood.");
       if (
-        (t.type === "clay" || t.type === "rust" || t.type === "seal") &&
+        (t.type === "clay" || (t.type === "rust" && !vinylRust) || t.type === "seal") &&
         !["concrete", "brick", "pavers"].includes(a.material)
       )
         errors.push(
@@ -508,7 +560,7 @@ export function calculate(draft: Draft) {
         p.url.length > 2000
       )
         throw Error("Invalid product identification.");
-      if(t.type==='rust'&&(!/^https:\/\/(?:www\.)?(?:amazon\.[a-z.]+|a\.co|amzn\.to)\//i.test(p.url)||p.name.includes('identification required')))errors.push('Identify the previously selected Amazon rust product and its exact listing before finalizing.');
+      if(t.type==='rust'&&!(vinylRust && vinylRustProduct)&&(!/^https:\/\/(?:www\.)?(?:amazon\.[a-z.]+|a\.co|amzn\.to)\//i.test(p.url)||p.name.includes('identification required')))errors.push('Identify the previously selected Amazon rust product and its exact listing before finalizing.');
       if(t.type==='memorial'&&p.name.includes('verify label'))errors.push('Enter the exact conservation cleaner name before finalizing.');
       const factor = c.materialFactors[a.material];
       if (!Number.isFinite(factor) || factor <= 0 || factor > 10)
@@ -523,7 +575,7 @@ export function calculate(draft: Draft) {
         p.coats *
         passes *
         (1 + c.wastePercent / 100);
-      let fraction = p.productParts / (p.productParts + p.waterParts),
+      let fraction = vinylRust && vinylRustProduct ? 0.5 : p.productParts / (p.productParts + p.waterParts),
         surfactantOz = 0;
       if (t.type === "organic") {
         const target = c.targetSH[a.material];
@@ -553,7 +605,9 @@ export function calculate(draft: Draft) {
         (concentrateGal * ((p.price ?? 0) + (p.shipping ?? 0))) /
           p.containerGal +
         (surfactantOz / 128) * (c.surfactantPrice ?? 0);
-      const detail = isMonument
+      const detail = a.kind === "canopy" && t === a.treatments[0]
+        ? nonnegative(a.accessMinutes, "ladder/access minutes") / 60
+        : isMonument
         ? (nonnegative(a.detailMinutes, "detail minutes") +
             nonnegative(a.accessMinutes, "access minutes")) /
           60
@@ -575,6 +629,10 @@ export function calculate(draft: Draft) {
           ? `Confirmed area: ${a.confirmedSquareFeet} sq ft`
           : a.kind === "rectangle"
           ? `${a.length.ft} ft ${a.length.inches} in × ${a.width.ft} ft ${a.width.inches} in`
+          : a.kind === "canopy"
+            ? Object.entries(parts)
+              .map(([key, size]) => CANOPY_FACES[key as keyof CanopyFaces] + " " + size.toFixed(2) + " sq ft")
+              .join(", ")
           : isElevation(a.kind)
             ? `Wall width ${a.length.ft} ft ${a.length.inches} in × wall height ${a.height.ft} ft ${a.height.inches} in`
           : a.kind === "gable"
@@ -591,7 +649,7 @@ export function calculate(draft: Draft) {
                 .join(", ")}`;
       rows.push({
         key: a.id + ":" + t.type,
-        description: `${a.name}${a.kind in EXTERIOR_KINDS ? " — "+EXTERIOR_KINDS[a.kind as keyof typeof EXTERIOR_KINDS] : ""} — ${t.type} (${MATERIAL_LABELS[a.material]||a.material})`,
+        description: `${a.name}${a.kind === "canopy" ? " — Awning / Entry Canopy" : a.kind in EXTERIOR_KINDS ? " — "+EXTERIOR_KINDS[a.kind as keyof typeof EXTERIOR_KINDS] : ""} — ${t.type} (${MATERIAL_LABELS[a.material]||a.material})`,
         area: treated,
         hours,
         laborHours: hours * c.crew,
@@ -625,10 +683,10 @@ export function calculate(draft: Draft) {
         (c.overheadHourly ?? 0)) +
     (c.fuel ?? 0);
   const cost = rows.reduce((n, r) => n + r.cost, 0) + sharedCost;
-  const total = money(Math.max(c.minimum, marginPrice(cost, c.margin)));
+  const baseTotal = money(Math.max(c.minimum, marginPrice(cost, c.margin)));
   // Allocate shared costs and the job minimum once using largest-remainder cents.
   const base = rows.reduce((n, r) => n + r.cost, 0),
-    cents = Math.round(total * 100);
+    cents = Math.round(baseTotal * 100);
   const allocations = rows.map((r, i) => {
     const share = cents * (base ? r.cost / base : 1 / rows.length);
     return { i, cents: Math.floor(share), fraction: share - Math.floor(share) };
@@ -641,7 +699,21 @@ export function calculate(draft: Draft) {
   allocations.forEach((x) => {
     rows[x.i].price = x.cents / 100;
   });
-  if (total > 10000000)
+  const promotion = applyDiscounts(draft.discounts, rows);
+  const total = promotion.total;
+  const belowMinimum = promotion.discount > 0 && total < money(c.minimum);
+  const overrideReason = draft.minimumOverrideReason ?? "";
+  if (typeof overrideReason !== "string" || overrideReason.length > 250)
+    throw Error("The minimum pricing override reason must be 250 characters or fewer.");
+  errors.push(...promotion.errors);
+  if (belowMinimum && !overrideReason.trim())
+    errors.push("The discounted total is below the job minimum. Reduce the discount or obtain an owner or admin override.");
+  if (total <= 0 && promotion.discount > 0)
+    errors.push("A discounted estimate must have a positive total.");
+  const actualMargin = total ? (100 * (total - cost)) / total : 0;
+  if (promotion.discount > 0 && actualMargin < c.margin)
+    warnings.push(`Discounts reduce operating margin to ${actualMargin.toFixed(2)}%, below the ${c.margin}% target.`);
+  if (baseTotal > 10000000)
     errors.push("Estimate exceeds the supported $10,000,000 limit.");
   return {
     rows,
@@ -650,8 +722,12 @@ export function calculate(draft: Draft) {
     cost: money(cost),
     sharedCost: money(sharedCost),
     total,
+    subtotal: promotion.subtotal,
+    discount: promotion.discount,
+    discountDetails: promotion.details,
+    belowMinimum,
     profit: money(total - cost),
-    margin: total ? (100 * (total - cost)) / total : 0,
+    margin: actualMargin,
     markup: cost ? (100 * (total - cost)) / cost : 0,
     hours: rows.reduce((n, r) => n + r.hours, 0) + sharedHours,
     laborHours: (rows.reduce((n, r) => n + r.hours, 0) + sharedHours) * c.crew,

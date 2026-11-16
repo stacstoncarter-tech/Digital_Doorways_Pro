@@ -6,20 +6,12 @@ async function context(){const supabase=await createClient();const {data:{user}}
 export async function invoiceCompletedJob(jobId:string):Promise<Result>{
  const ctx=await context();if(!ctx)return {error:'Access denied.'};
  if(!/^[0-9a-f-]{36}$/i.test(jobId))return {error:'Invalid job.'};
- const {data:job}=await ctx.supabase.from('jobs').select('id,customer_id,estimate_id,status').is('deleted_at',null).eq('id',jobId).eq('business_id',ctx.member.business_id).maybeSingle();
- if(!job||job.status!=='completed'||!job.estimate_id)return {error:'A completed job with an estimate is required.'};
- const {data:existingInvoice}=await ctx.supabase.from('invoices').select('id').is('deleted_at',null).eq('business_id',ctx.member.business_id).eq('job_id',job.id).limit(1).maybeSingle();
- if(existingInvoice)return {error:'An invoice already exists for this job.'};
- const {data:estimate}=await ctx.supabase.from('estimates').select('id,discount,tax_rate,estimate_items(description,pricing_mode,square_feet,rate,fixed_price,position)').is('deleted_at',null).eq('id',job.estimate_id).eq('business_id',ctx.member.business_id).maybeSingle();
- if(!estimate)return {error:'Estimate not found.'};
- const items=(estimate.estimate_items||[]).map(i=>({description:i.description,quantity:i.pricing_mode==='area'?Number(i.square_feet||0):1,unit_price:i.pricing_mode==='area'?Number(i.rate||0):Number(i.fixed_price||0),position:i.position})).filter(i=>i.quantity>0&&i.unit_price>=0);
- if(!items.length)return {error:'Estimate has no billable services.'};
- const subtotal=items.reduce((s,i)=>s+i.quantity*i.unit_price,0);
- const invoice_number='PC-'+job.id.slice(0,8).toUpperCase();
- const {data:invoice,error}=await ctx.supabase.from('invoices').insert({business_id:ctx.member.business_id,customer_id:job.customer_id,job_id:job.id,created_by:ctx.user.id,invoice_number,subtotal:Math.round(subtotal*100)/100,discount:Number(estimate.discount||0),tax_rate:Number(estimate.tax_rate||0)}).select('id').single();
- if(error)return {error:error.code==='23505'?'An invoice already exists for this job.':'Could not create invoice.'};
- const {error:itemError}=await ctx.supabase.from('invoice_items').insert(items.map(i=>({...i,invoice_id:invoice.id})));
- if(itemError)return {error:'Invoice created but line items could not be copied. Contact support before sending.'};
+ const {error}=await ctx.supabase.rpc('invoice_completed_job',{p_job_id:jobId});
+ if(error){
+  if(error.code==='23505')return {error:'An invoice already exists for this job.'};
+  if(error.code==='P0001')return {error:error.message};
+  return {error:'Could not create invoice.'};
+ }
  revalidatePath('/invoices');revalidatePath('/jobs');return {success:true};
 }
 export async function setInvoiceStatus(id:string,status:string):Promise<Result>{
