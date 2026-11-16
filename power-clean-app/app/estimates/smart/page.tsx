@@ -15,6 +15,8 @@ import {
   MATERIALS,
   STAIR_MATERIALS,
   EXTERIOR_KINDS,
+  CANOPY_FACES,
+  type CanopyFace,
   MATERIAL_LABELS,
   isElevation,
   STONES,
@@ -420,6 +422,7 @@ export default function SmartEstimate() {
                         const kind = e.target.value as Area["kind"];
                         area(a.id, {
                           kind,
+                          accessMinutes: kind === "canopy" ? 0 : kind === "monument" && a.kind === "canopy" ? newArea().accessMinutes : a.accessMinutes,
                           confirmedSquareFeet: undefined,
                           measurementSource: undefined,
                           material:
@@ -437,6 +440,7 @@ export default function SmartEstimate() {
                     >
                       <option value="rectangle">Surface / rectangle</option>
                       {Object.entries(EXTERIOR_KINDS).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+                      <option value="canopy">Awning / Entry Canopy</option>
                       <option value="stairs">Stairs</option>
                       <option value="monument">Monument / memorial</option>
                     </select>
@@ -454,7 +458,7 @@ export default function SmartEstimate() {
                   </label>
                 </div>
                 <div className="smart-grid" style={{ marginTop: 14 }}>
-                  {(a.kind === "rectangle" || a.kind === "fascia" || a.kind === "soffit"
+                  {(a.kind === "canopy" ? [] : a.kind === "rectangle" || a.kind === "fascia" || a.kind === "soffit"
                     ? ["length", "width"]
                     : isElevation(a.kind) ? ["length","height"]
                     : a.kind === "gable" ? ["length","height","depth"]
@@ -482,6 +486,49 @@ export default function SmartEstimate() {
                   ))}
                 </div>
                 {a.kind in EXTERIOR_KINDS && <p>{a.kind === "gable" ? "Area = rectangular wall + half × base width × triangular rise. The rise is above the eave, not total roof height." : a.kind === "fascia" ? "Measure the visible vertical fascia face: total run × face height." : a.kind === "soffit" ? "Measure the underside of the overhang: total run × projection depth." : "Measure each wall separately as width × height. Left and right are viewed from the front."} Add separate areas for different materials or sections; do not count the same surface twice.</p>}
+                {a.kind === "canopy" && (
+                  <div>
+                    <h4>Cleaning faces</h4>
+                    <NumberField label="Ladder / access minutes" value={a.accessMinutes} onChange={n => area(a.id, { accessMinutes: n ?? 0 })} />
+                    <p>Measure each exposed face once. Use the full top or individual roof sections. Enter the actual length along a slope. Use a separate treatment area for a different material.</p>
+                    {Object.entries(CANOPY_FACES).map(([key, label]) => {
+                      const faceKey = key as keyof typeof CANOPY_FACES;
+                      const faces = a.canopyFaces ?? {};
+                      const face = faces[faceKey];
+                      const roofSection = faceKey === "leftRoof" || faceKey === "rightRoof";
+                      const setFace = (next?: CanopyFace) => {
+                        const updated = { ...faces };
+                        if (next) updated[faceKey] = next;
+                        else delete updated[faceKey];
+                        area(a.id, { canopyFaces: updated });
+                      };
+                      const zero = { ft: 0, inches: 0 };
+                      return <div key={key} className="smart-area">
+                        <label><input type="checkbox" checked={!!face}
+                          disabled={!face && (roofSection ? !!faces.top : faceKey === "top" && !!(faces.leftRoof || faces.rightRoof))}
+                          onChange={e => setFace(e.target.checked ? {
+                            shape: roofSection ? "sloped" : "rectangle", length: zero, width: zero, secondBase: zero,
+                          } : undefined)} /> {label}</label>
+                        {face && <>
+                          <div className="smart-grid">
+                            <label>Shape<select value={face.shape} onChange={e => setFace({ ...face, shape: e.target.value as CanopyFace["shape"] })}>
+                              <option value="rectangle">Rectangle</option>
+                              <option value="sloped">Sloped rectangle</option>
+                              <option value="triangle">Triangle</option>
+                              <option value="trapezoid">Trapezoid</option>
+                            </select></label>
+                            <Feet label={face.shape === "sloped" ? "Actual slope length" : face.shape === "triangle" ? "Base" : face.shape === "trapezoid" ? "Parallel side A" : "Length"} value={face.length} onChange={length => setFace({ ...face, length })} />
+                            <Feet label={face.shape === "triangle" || face.shape === "trapezoid" ? "Perpendicular height" : "Width"} value={face.width} onChange={width => setFace({ ...face, width })} />
+                            {face.shape === "trapezoid" && <Feet label="Parallel side B" value={face.secondBase} onChange={secondBase => setFace({ ...face, secondBase })} />}
+                          </div>
+                          {(face.shape === "rectangle" || face.shape === "sloped") && <ImageMeasurements dimensionsOnly onApply={m => {
+                            if (m.length && m.width) setFace({ ...face, length: m.length, width: m.width });
+                          }} />}
+                        </>}
+                      </div>;
+                    })}
+                  </div>
+                )}
                 {a.kind === "rectangle" && <>
                   <ImageMeasurements onApply={m=>area(a.id,m.length&&m.width?{length:m.length,width:m.width,confirmedSquareFeet:undefined,measurementSource:m.text.slice(0,500)}:{confirmedSquareFeet:m.squareFeet,measurementSource:m.text.slice(0,500)})}/>
                   {a.measurementSource&&<p>Confirmed image measurement: {a.measurementSource}</p>}
@@ -606,7 +653,8 @@ export default function SmartEstimate() {
                   <strong>
                     {(() => {
                       try {
-                        return geometry(a).area.toFixed(2) + " sq ft";
+                        const squareFeet = geometry(a).area;
+                        return squareFeet.toFixed(2) + " sq ft (" + (squareFeet * 144).toFixed(2) + " sq in)";
                       } catch {
                         return "Check measurements";
                       }
