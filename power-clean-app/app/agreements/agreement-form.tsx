@@ -1,0 +1,33 @@
+'use client';
+import {useState,useTransition} from 'react';
+import {useRouter} from 'next/navigation';
+import Link from 'next/link';
+import {createAgreement} from './actions';
+import {SERVICE_TEMPLATE,LIABILITY_TEMPLATE} from './templates';
+type Customer={id:string;name:string};
+export default function AgreementForm({customers,initialCustomerId='',initialTemplate=''}:{customers:Customer[];initialCustomerId?:string;initialTemplate?:string}){
+ const [customerId,setCustomerId]=useState(initialCustomerId);
+ const [type,setType]=useState(initialTemplate==='liability_release'?'liability_release':'service_contract');
+ const [title,setTitle]=useState(initialTemplate==='liability_release'?'Power Clean Property Condition Disclosure and Acknowledgment of Risk':initialTemplate==='service_contract'?'Power Clean Pressure & Soft Washing Service Agreement':'Power Clean Service Agreement');
+ const [body,setBody]=useState(initialTemplate==='liability_release'?LIABILITY_TEMPLATE:initialTemplate==='service_contract'?SERVICE_TEMPLATE:'');
+ const [pending,start]=useTransition();
+ const [message,setMessage]=useState('');
+ const [testMode,setTestMode]=useState(false);
+ const [templateLoaded,setTemplateLoaded]=useState(Boolean(initialTemplate));
+ const testText='TEST ONLY — NOT A LEGAL AGREEMENT OR LIABILITY RELEASE. This document is solely for checking the Power Clean electronic signing workflow. No cleaning service is ordered, no payment is due, and no liability is waived by signing this test document.';
+ const router=useRouter();
+ return <section className="panel"><h2>Create agreement draft</h2><p className="muted">Enter approved contract wording. These drafts are not yet sent for signature.</p>
+ <div style={{display:'grid',gap:14,maxWidth:680}}>
+ {customers.length===0&&<p>No customers loaded. <Link href="/customers">Check Customers</Link>.</p>}
+ <label>Customer<select value={customerId} onChange={e=>setCustomerId(e.target.value)} style={{display:'block',padding:10,width:'100%'}}><option value="">Select customer</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+ <div>{customers.map(c=><button key={c.id} type="button" onClick={()=>setCustomerId(c.id)}>{c.name}{customerId===c.id?' (selected)':''}</button>)}</div>
+ <label>Document type<select value={type} onChange={e=>{setType(e.target.value);setTitle(e.target.value==='liability_release'?'Power Clean Liability Release':'Power Clean Service Agreement');}} style={{display:'block',padding:10}}><option value="service_contract">Service contract</option><option value="liability_release">Liability release</option></select></label>
+ <label>Title<input value={title} onChange={e=>setTitle(e.target.value)} style={{display:'block',padding:10,width:'100%'}}/></label>
+ <div><button type="button" onClick={()=>{setTestMode(false);setTemplateLoaded(true);setTitle(type==='liability_release'?'Power Clean Property Condition Disclosure and Acknowledgment of Risk':'Power Clean Pressure & Soft Washing Service Agreement');setBody(type==='liability_release'?LIABILITY_TEMPLATE:SERVICE_TEMPLATE);}}>Load editable {type==='liability_release'?'liability acknowledgment':'service agreement'} template</button><p className="muted">Review and complete any remaining placeholders before sending. Florida legal review is recommended.</p></div>
+ <label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" checked={testMode} onChange={e=>{setTestMode(e.target.checked);if(e.target.checked){setTitle('TEST ONLY — Power Clean signing workflow');setBody(testText);}else{setTitle('Power Clean Service Agreement');setBody('');setTemplateLoaded(false);}}}/> Use safe test document wording</label>
+ {templateLoaded&&!testMode&&<p role="status">Agreement template loaded. Review and customize all placeholders before saving.</p>}
+ <label>Agreement text<textarea rows={10} value={body} onChange={e=>setBody(e.target.value)} placeholder="Paste your reviewed agreement wording here." style={{display:'block',padding:10,width:'100%'}}/></label>
+ <button type="button" disabled={pending||!customerId||!body.trim()} onClick={()=>start(async()=>{const result=await createAgreement(customerId,type,title,body);setMessage(result.success?'Draft saved. Create the second document type for the same customer, then prepare separate signing links.':result.error||'Save failed.');if(result.success){setBody('');router.refresh();}})}>{pending?'Saving…':'Save agreement draft'}</button>
+ {message&&<p role="status">{message}</p>}
+ </div></section>;
+}

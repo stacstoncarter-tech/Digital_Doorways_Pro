@@ -1,0 +1,13 @@
+'use client';
+import {useActionState,useState,useTransition} from 'react';
+import {addEquipment,addMaintenance,updateEquipmentStatus} from './actions';
+const initial={error:'',success:''};
+export function EquipmentForm(){const [s,action,p]=useActionState(addEquipment,initial);return <details><summary>Add equipment</summary><form action={action} style={{display:'grid',gap:10,maxWidth:600,marginTop:12}}>
+ <label>Equipment name<input name="name" required maxLength={120}/></label>
+ <label>Category<select name="category">{['pressure_washer','pump','hose','surface_cleaner','vehicle','safety','chemical_application','other'].map(x=><option key={x} value={x}>{x.replace('_',' ')}</option>)}</select></label>
+ <label>Manufacturer<input name="manufacturer"/></label><label>Model<input name="model"/></label><label>Serial number<input name="serial_number"/></label>
+ <label>Status<select name="status">{['active','needs_repair','out_of_service','retired'].map(x=><option key={x} value={x}>{x.replaceAll('_',' ')}</option>)}</select></label>
+ <label>Purchase date<input type="date" name="purchased_at"/></label><label>Purchase price<input type="number" min="0" step=".01" name="purchase_price"/></label>
+ <label>Notes<textarea name="notes" rows={3}/></label><button className="primary" disabled={p}>Save equipment</button>{s.error&&<p role="alert">{s.error}</p>}{s.success&&<p role="status">{s.success}</p>}</form></details>}
+export function EquipmentStatus({id,status}:{id:string;status:string}){const [p,start]=useTransition(),[error,setError]=useState('');return <div><label>Status <select value={status} disabled={p} onChange={e=>start(async()=>{const r=await updateEquipmentStatus(id,e.target.value);setError(r.error||'');})}>{['active','needs_repair','out_of_service','retired'].map(x=><option key={x} value={x}>{x.replaceAll('_',' ')}</option>)}</select></label>{error&&<p role="alert">{error}</p>}</div>}
+export function MaintenanceForm({equipmentId}:{equipmentId:string}){const [s,action,p]=useActionState(addMaintenance,initial);return <details><summary>Record maintenance</summary><form action={action} style={{display:'grid',gap:10,maxWidth:500,marginTop:12}}><input type="hidden" name="equipment_id" value={equipmentId}/><label>Date<input type="date" name="performed_at" required/></label><label>Work performed<textarea name="description" required maxLength={1000}/></label><label>Cost<input type="number" name="cost" defaultValue="0" min="0" step=".01" required/></label><label>Next maintenance due<input type="date" name="next_due"/></label><button disabled={p}>Save maintenance</button>{s.error&&<p role="alert">{s.error}</p>}{s.success&&<p role="status">{s.success}</p>}</form></details>}
