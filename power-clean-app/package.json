@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:regression": "node --test tests/*.test.mjs",
-    "test:qa-auth": "node scripts/qa-auth.mjs"
+    "test:qa-auth": "node scripts/qa-auth.mjs",
+    "test:qa-canopy": "node scripts/qa-canopy.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
