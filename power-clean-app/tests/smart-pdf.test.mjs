@@ -57,6 +57,12 @@ test("branded PDF handles pagination and includes embedded logo", async () => {
     assert.ok(pdf.getPageCount() > 1);
     assert.equal(pdf.getTitle(), "Power Clean Estimate");
     assert.ok(bytes.length > 1000);
+    const images = areas[0].photos = Array.from({length:3},()=> "before-"+crypto.randomUUID()+".jpg");
+    const jpeg = await (await import("sharp")).default({create:{width:12,height:8,channels:3,background:"white"}}).jpeg().toBuffer();
+    const loaded=[];
+    const withPhotos=await estimatePdf(d,"Photo QA","Test address","Photo QA",readFileSync(new URL("../public/power-clean-estimate-logo.png",import.meta.url)),"sent",async name=>{loaded.push(name);return jpeg;});
+    assert.deepEqual(loaded,images);
+    assert.equal((await PDFDocument.load(withPhotos)).getPageCount(), pdf.getPageCount()+1);
   } finally {
     await unlink(file);
   }

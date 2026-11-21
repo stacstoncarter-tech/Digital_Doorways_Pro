@@ -15,7 +15,7 @@ export default async function CustomersPage({searchParams}:{searchParams:Promise
   const { data: membership, error: memberError } = await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
   if (memberError) return <main className="workspace"><h1>Workspace unavailable</h1><p role="alert">Could not verify your business access. Please try again.</p><SignOut/></main>;
   if (!membership) return <main className="workspace"><h1>Access pending</h1><p>Your account has not been assigned to a Power Clean business. Contact the administrator.</p><SignOut/></main>;
-  let query=supabase.from('customers').select('id,name,email,phone,service_address',{count:'exact'}).eq('business_id',membership.business_id);
+  let query=supabase.from('active_customers').select('id,name,email,phone,service_address',{count:'exact'}).eq('business_id',membership.business_id);
   if(q){
     const safe=q.replace(/[%_,().]/g,' ').trim();
     if(safe){

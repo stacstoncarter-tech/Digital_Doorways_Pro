@@ -15,7 +15,7 @@ type Props = {
 export default function DiscountEditor({
   entries, areas, overrideReason, belowMinimum, canOverride, disabled, onChange, onOverride,
 }: Props) {
-  const services = areas.flatMap(area => area.treatments
+  const services = areas.flatMap(area => area.kind==="window" ? [{key:area.id+":window",label:area.name+" · Window cleaning"}] : area.treatments
     .filter(treatment => TREATMENTS.includes(treatment.type))
     .map(treatment => ({ key: area.id + ":" + treatment.type, label: area.name + " · " + treatment.type })));
   return (

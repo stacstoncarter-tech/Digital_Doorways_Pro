@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { AreaPhotos, PhotoStrip } from "./area-photos";
 import DiscountEditor from "./discount-editor";
 import DiscountBreakdown from "@/app/estimates/discount-breakdown";
 import ImageMeasurements from "./image-measurements";
@@ -13,7 +14,7 @@ import {
   defaults,
   newArea,
   MATERIALS,
-  STAIR_MATERIALS,
+  STAIR_MATERIALS, stairParts, windowParts,
   EXTERIOR_KINDS,
   CANOPY_FACES,
   type CanopyFace,
@@ -108,6 +109,7 @@ const initial = (): Draft => ({
   config: defaults(),
 });
 export default function SmartEstimate() {
+  const [businessId, setBusinessId] = useState("");
   const [growth, setGrowth] = useState(defaultGrowthPlan),
     [draft, setDraft] = useState<Draft | null>(null),
     [draftId, setDraftId] = useState(""),
@@ -150,9 +152,10 @@ export default function SmartEstimate() {
         .limit(1)
         .maybeSingle();
       if (!m) return;
+      setBusinessId(m.business_id);
       setCanOverride(["owner", "admin"].includes(m.role));
       const { data, error } = await db
-        .from("customers")
+        .from("active_customers")
         .select("id,name,service_address")
         .eq("business_id", m.business_id)
         .order("name")
@@ -261,7 +264,7 @@ export default function SmartEstimate() {
         if (r.estimateId) setSavedEstimate(r.estimateId);
         setMessage("Estimate saved to customer history.");
       } else {
-        const r = await saveSmartDraft(draft, id);
+        const r = draftId ? await saveSmartDraft(draft, id) : {error: undefined};
         if (r.error) throw Error(r.error);
         setMessage("Draft saved and verified.");
       }
@@ -300,6 +303,7 @@ export default function SmartEstimate() {
   const r = result?.value,
     c = draft.config,
     locked = Boolean(savedEstimate);
+  const issues = (messages: string[]) => messages.length ? <ul className="smart-alert">{messages.map(message=><li key={message}>{message}</li>)}</ul> : null;
   const blocked = Boolean(r?.errors.length || (r?.belowMinimum && !canOverride && !locked));
   return (
     <main className="workspace smart-estimate">
@@ -326,14 +330,15 @@ export default function SmartEstimate() {
         )}
         <section className="panel">
           <h2>Customer & drafts</h2>
+          {(!draft.customerId || !draft.serviceAddressId) && <p className="smart-alert">Select a customer and service address to finalize.</p>}
           <div className="smart-grid">
             <label>
               Customer
               <select
-                disabled={locked}
+                disabled={locked || busy}
                 value={draft.customerId}
                 onChange={(e) =>
-                  change({ customerId: e.target.value, serviceAddressId: "" })
+                  change({ customerId: e.target.value, serviceAddressId: "", areas: draft.areas.map(a=>({...a,photos:[]})) })
                 }
               >
                 <option value="">Select customer</option>
@@ -347,7 +352,7 @@ export default function SmartEstimate() {
             <label>
               Service address
               <select
-                disabled={locked}
+                disabled={locked || busy}
                 value={draft.serviceAddressId}
                 onChange={(e) => change({ serviceAddressId: e.target.value })}
               >
@@ -386,6 +391,7 @@ export default function SmartEstimate() {
           <button
             type="button"
             onClick={() => {
+              if (busy) return;
               setDraft({ ...initial(), config: structuredClone(draft.config) });
               setDraftId("");
               setSavedEstimate("");
@@ -403,8 +409,14 @@ export default function SmartEstimate() {
               Setup, travel and fuel are charged once per job.
             </p>
             {draft.areas.map((a, i) => (
-              <div key={a.id} className="smart-area">
-                <h3>Area {i + 1}</h3>
+              <details key={a.id} className="smart-area" open={true}>
+                <summary>Area {i + 1} · {a.name}</summary>
+                {issues(r?.areaErrors[a.id] ?? [])}
+                {result?.error && (()=>{try{geometry(a);return null;}catch(e){return issues([e instanceof Error?e.message:"Check this area’s dimensions."]);}})()}
+                <button type="button" disabled={draft.areas.length >= 20} onClick={() => {
+                  const copy = {...structuredClone(a), id: crypto.randomUUID(), photos: [], name: a.name.slice(0, 73) + " (copy)"};
+                  change({areas: [...draft.areas.slice(0,i+1), copy, ...draft.areas.slice(i+1)]});
+                }}>Duplicate area</button>
                 <div className="smart-grid">
                   <label>
                     Area name
@@ -421,7 +433,7 @@ export default function SmartEstimate() {
                       onChange={(e) => {
                         const kind = e.target.value as Area["kind"];
                         area(a.id, {
-                          kind,
+                          kind, components: [],
                           accessMinutes: kind === "canopy" ? 0 : kind === "monument" && a.kind === "canopy" ? newArea().accessMinutes : a.accessMinutes,
                           confirmedSquareFeet: undefined,
                           measurementSource: undefined,
@@ -441,11 +453,12 @@ export default function SmartEstimate() {
                       <option value="rectangle">Surface / rectangle</option>
                       {Object.entries(EXTERIOR_KINDS).map(([value,label])=><option key={value} value={value}>{label}</option>)}
                       <option value="canopy">Awning / Entry Canopy</option>
+                      <option value="window">Window assembly</option>
                       <option value="stairs">Stairs</option>
                       <option value="monument">Monument / memorial</option>
                     </select>
                   </label>
-                  <label>
+                  {a.kind!=="window" && <label>
                     {a.kind === "monument" ? "Stone" : "Material"}
                     <select
                       value={a.material}
@@ -455,10 +468,10 @@ export default function SmartEstimate() {
                         <option key={m} value={m}>{MATERIAL_LABELS[m]||m}</option>
                       ))}
                     </select>
-                  </label>
+                  </label>}
                 </div>
                 <div className="smart-grid" style={{ marginTop: 14 }}>
-                  {(a.kind === "canopy" ? [] : a.kind === "rectangle" || a.kind === "fascia" || a.kind === "soffit"
+                  {(a.kind === "canopy" || a.kind === "window" ? [] : a.kind === "rectangle" || a.kind === "fascia" || a.kind === "soffit"
                     ? ["length", "width"]
                     : isElevation(a.kind) ? ["length","height"]
                     : a.kind === "gable" ? ["length","height","depth"]
@@ -485,6 +498,23 @@ export default function SmartEstimate() {
                     />
                   ))}
                 </div>
+                {businessId && draft.customerId && <AreaPhotos folder={businessId+"/"+draft.customerId} names={a.photos??[]} change={photos=>area(a.id,{photos})} setBusy={setBusy}/>}
+                {(a.kind === "window" || a.kind === "stairs") && <fieldset>
+                  <legend>Exposed components</legend>
+                  <p>Enter length and total exposed width around each piece. For two sides of glass, count both faces. Exclude surfaces already measured under stair sides, treads or risers.</p>
+                  {(a.components ?? []).map((part,j) => {
+                    const update = (patch: Partial<typeof part>) => area(a.id,{components:a.components!.map((x,k)=>k===j?{...x,...patch}:x)});
+                    return <fieldset key={j}><legend>{part.name}</legend><div className="smart-grid">
+                      <Feet label="Length" value={part.length} onChange={length=>update({length})}/>
+                      <Feet label="Total exposed width" value={part.width} onChange={width=>update({width})}/>
+                      <NumberField label="Identical pieces or faces" value={part.count} min={1} onChange={n=>update({count:n??1})}/>
+                    </div><button type="button" onClick={()=>area(a.id,{components:a.components!.filter((_,k)=>k!==j)})}>Remove component</button></fieldset>;
+                  })}
+                  <label>Add component<select value="" onChange={e=>area(a.id,{components:[...(a.components??[]),{name:e.target.value,count:1,length:{ft:0,inches:0},width:{ft:0,inches:0}}]})}>
+                    <option value="">Choose a part</option>{(a.kind==="stairs"?stairParts:windowParts).map(name=><option key={name}>{name}</option>)}</select></label>
+                  {a.kind==="window" && <><NumberField label="Window cleaning sq ft per crew hour" value={a.windowProductivity??null} onChange={n=>area(a.id,{windowProductivity:n??0})}/>
+                  <NumberField label="Window cleaning supplies for this area ($)" value={a.windowSupplies??0} onChange={n=>area(a.id,{windowSupplies:n??0})}/></>}
+                </fieldset>}
                 {a.kind in EXTERIOR_KINDS && <p>{a.kind === "gable" ? "Area = rectangular wall + half × base width × triangular rise. The rise is above the eave, not total roof height." : a.kind === "fascia" ? "Measure the visible vertical fascia face: total run × face height." : a.kind === "soffit" ? "Measure the underside of the overhang: total run × projection depth." : "Measure each wall separately as width × height. Left and right are viewed from the front."} Add separate areas for different materials or sections; do not count the same surface twice.</p>}
                 {a.kind === "canopy" && (
                   <div>
@@ -661,7 +691,7 @@ export default function SmartEstimate() {
                     })()}
                   </strong>
                 </p>
-                <div className="smart-scroll">
+                {a.kind !== "window" && <><div className="smart-scroll">
                   <table>
                     <thead>
                       <tr>
@@ -758,6 +788,7 @@ export default function SmartEstimate() {
                     ))}
                   </select>
                 </label>
+                </>}
                 <details>
                   <summary>Safety checks & customer dimensions</summary>
                   {Object.entries({
@@ -793,14 +824,14 @@ export default function SmartEstimate() {
                   </label>
                 </details>
                 <button
-                  type="button"
+                  type="button" disabled={draft.areas.length <= 1}
                   onClick={() =>
                     change({ areas: draft.areas.filter((x) => x.id !== a.id) })
                   }
                 >
                   Remove area
                 </button>
-              </div>
+              </details>
             ))}
             <button
               type="button"
@@ -824,9 +855,11 @@ export default function SmartEstimate() {
               return (
                 <details key={type}>
                   <summary>
+                    {r?.productErrors[type]?.length ? "Needs review · " : ""}
                     {type} — {p.name}
                   </summary>
                   <div className="smart-grid">
+                    {issues(r?.productErrors[type]??[])}
                     <label>
                       Product name
                       <input
@@ -985,6 +1018,8 @@ export default function SmartEstimate() {
           </section>
           <section className="panel">
             <h2>Job costs & profit</h2>
+            {!c.costsReviewed && <p className="smart-alert">Review the job costs and confirm them below.</p>}
+            {c.crew >= 2 && <NumberField label="Assistant hourly pay ($, one member of crew; blank uses standard crew rate)" value={c.assistantRate??null} nullable onChange={assistantRate=>config({assistantRate})}/>}
             <div className="smart-grid">
               {(
                 [
@@ -1059,7 +1094,7 @@ export default function SmartEstimate() {
           {r && (
             <>
               <p>
-                Clock hours: {r.hours.toFixed(2)} · Person-hours:{" "}
+                {c.crew >= 2 && c.assistantRate != null && <>Assistant pay: {usd(r.assistantPay)} · </>}Clock hours: {r.hours.toFixed(2)} · Person-hours:{" "}
                 {r.laborHours.toFixed(2)} · Shared job cost: {usd(r.sharedCost)}
               </p>
               <div className="smart-scroll">
@@ -1155,7 +1190,7 @@ export default function SmartEstimate() {
             const g = growthProjection(growth, r.total);
             const edit = (key: keyof typeof growth, value: number) => setGrowth((old) => ({ ...old, [key]: value }));
             return (
-              <details className="smart-growth" open>
+              <details className="smart-growth">
                 <summary>Business Growth Planner — internal only</summary>
                 <p>Planning scenario, not a customer quote adjustment. The $483/job target in your plan assumes 12 jobs/month, $64/job operating costs, and a 25% modeled tax reserve. Actual operating costs and taxes may differ.</p>
                 <div className="smart-flex">
@@ -1270,6 +1305,7 @@ export default function SmartEstimate() {
           </>}
           <h2>Total: {usd(r.total)}</h2>
           <p>{draft.notes}</p>
+          {draft.areas.filter(a=>a.photos?.length).map(a=><section key={a.id}><h3>{a.name}</h3><PhotoStrip folder={businessId+"/"+draft.customerId} names={a.photos!}/></section>)}
           <footer>Stacston Carter — Owner, Power Clean</footer>
         </article>
       )}
