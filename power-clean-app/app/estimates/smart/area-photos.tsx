@@ -7,15 +7,19 @@ export function PhotoStrip({folder, names}: {folder:string; names:string[]}) {
   const key=names.join(",");
   useEffect(()=>{
     let active=true;
-    async function refresh(){
-      if(!key) {setUrls([]); return;}
-      const {data}=await createClient().storage.from("power-clean-customer-photos")
-        .createSignedUrls(key.split(",").map(name=>folder+"/"+name),3600);
-      if(active) setUrls((data??[]).map(photo=>photo.signedUrl??""));
+    const [business,customer]=folder.split("/");
+    async function load(){
+      if(!key){setUrls([]);return;}
+      const names=key.split(",");
+      const {data}=await createClient().from("estimate_photo_copies").select("name,jpeg")
+        .eq("business_id",business).eq("customer_id",customer).in("name",names);
+      if(active) setUrls(names.map(name=>{
+        const photo=data?.find(item=>item.name===name);
+        return photo?"data:image/jpeg;base64,"+photo.jpeg:"";
+      }));
     }
-    void refresh();
-    const timer=setInterval(refresh,50*60000);
-    return ()=>{active=false;clearInterval(timer);};
+    void load();
+    return ()=>{active=false;};
   },[folder,key]);
   return <div>{names.map((name,i)=>urls[i] && <img key={name} src={urls[i]} alt={name.split("-")[0]+" treatment area"} width={150} style={{maxWidth:"30%",height:"auto",marginRight:6}}/>)}</div>;
 }
