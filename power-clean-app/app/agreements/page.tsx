@@ -15,7 +15,7 @@ export default async function AgreementsPage({searchParams}:{searchParams:Promis
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)return <main className="workspace"><h1>Business access pending</h1></main>;
  const [{data:customers,error:customerError},{data:agreements,error:agreementsError}]=await Promise.all([
- supabase.from('customers').select('id,name,email,phone').eq('business_id',member.business_id).order('name').limit(500),
+ supabase.from('active_customers').select('id,name,email,phone').eq('business_id',member.business_id).order('name').limit(500),
  supabase.from('customer_agreements').select('id,customer_id,title,document_type,status,created_at,signing_expires_at,customers(name,email,phone)').is('deleted_at',null).eq('business_id',member.business_id).order('created_at',{ascending:false}).limit(100)
  ]);
  const counts={all:(agreements||[]).length,draft:(agreements||[]).filter(a=>a.status==='draft').length,sent:(agreements||[]).filter(a=>a.status==='sent').length,signed:(agreements||[]).filter(a=>a.status==='signed').length,void:(agreements||[]).filter(a=>a.status==='void').length};

@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const [{ data: c }, { data: a }] = await Promise.all([
       db
         .from("customers")
-        .select("name")
+        .select("name,service_address")
         .eq("id", d.customerId)
         .eq("business_id", m.business_id)
         .single(),
@@ -57,10 +57,19 @@ export async function GET(request: Request) {
     const bytes = await estimatePdf(
       d,
       c?.name ?? "Customer",
-      a?.address ?? "",
+      a?.address ?? c?.service_address ?? "",
       s.estimate_id,
       logo,
       estimate.status,
+      async name => {
+        const {data,error}=await db.storage.from("power-clean-customer-photos").download(m.business_id+"/"+d.customerId+"/"+name);
+        if(error || !data){
+          const {data:copy}=await db.from("estimate_photo_copies").select("jpeg").eq("business_id",m.business_id).eq("customer_id",d.customerId).eq("name",name).single();
+          if(!copy)throw Error("Estimate photo unavailable.");
+          return Buffer.from(copy.jpeg,"base64");
+        }
+        return new Uint8Array(await data.arrayBuffer());
+      },
     );
     return new Response(Buffer.from(bytes), {
       headers: {

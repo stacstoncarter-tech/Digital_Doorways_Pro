@@ -75,10 +75,30 @@ function canopyGeometry(faces: CanopyFaces = {}) {
   }
   return { area: Object.values(parts).reduce((sum, part) => sum + part, 0), parts };
 }
+export const stairParts = ["Handrail", "Box newel post", "Wood baluster", "Iron baluster", "Wall stringer", "Structural cut stringer", "Bullnose", "Underside", "Other stair trim"] as const;
+export const windowParts = ["Glass pane", "Screen", "Frame head", "Jamb", "Sill", "Sash stile", "Sash rail", "Meeting rail", "Mullion", "Muntin / grille", "Track", "Casing", "Apron", "Stool", "Hardware", "Other trim"] as const;
+export type SurfacePart = { name: string; length: Measurement; width: Measurement; count: number };
+function componentAreas(a: Area) {
+  const pieces = a.components ?? [];
+  if (!Array.isArray(pieces) || pieces.length > 100) throw Error("Use at most 100 component rows.");
+  const allowed: readonly string[] = a.kind === "stairs" ? stairParts : windowParts;
+  const parts: Record<string, number> = {};
+  for (const piece of pieces) {
+    if (!allowed.includes(piece.name) || !Number.isInteger(piece.count) || piece.count < 1 || piece.count > 10000)
+      throw Error("Check component type and quantity.");
+    const size = measure(piece.length) * measure(piece.width) * piece.count;
+    parts[piece.name] = (parts[piece.name] ?? 0) + size;
+  }
+  return parts;
+}
 export type Area = {
+  components?: SurfacePart[];
+  photos?: string[];
+  windowProductivity?: number;
+  windowSupplies?: number;
   id: string;
   name: string;
-  kind: "canopy" | "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
+  kind: "window" | "canopy" | "rectangle" | "stairs" | "monument" | keyof typeof EXTERIOR_KINDS;
   canopyFaces?: CanopyFaces;
   material: string;
   confirmedSquareFeet?: number;
@@ -128,6 +148,7 @@ export type Config = {
   products: Record<Treatment, Product>;
   laborRate: number | null;
   crew: number;
+  assistantRate?: number | null;
   equipmentHourly: number | null;
   fuel: number | null;
   overheadHourly: number | null;
@@ -185,6 +206,7 @@ export function geometry(a: Area) {
     d = measure(a.depth);
   if (a.confirmedSquareFeet !== undefined && (a.kind !== "rectangle" || !Number.isFinite(a.confirmedSquareFeet) || a.confirmedSquareFeet <= 0 || a.confirmedSquareFeet > 1e8)) throw Error("Invalid confirmed square footage.");
   if (a.measurementSource !== undefined && (typeof a.measurementSource !== "string" || a.measurementSource.length > 500)) throw Error("Invalid measurement source.");
+  if (a.kind === "window") { const parts = componentAreas(a); return { parts, area: Object.values(parts).reduce((sum, n) => sum + n, 0) }; }
   if (a.kind === "canopy") return canopyGeometry(a.canopyFaces);
   if (a.kind === "rectangle") {const area=a.confirmedSquareFeet ?? l*w;return { area, parts: { surface: area } };}
   if (isElevation(a.kind)) return {area:l*h,parts:{wall:l*h}};
@@ -206,9 +228,10 @@ export function geometry(a: Area) {
       (n, x) => n + measure(x.length) * measure(x.width),
       0,
     );
+    const extras = componentAreas(a);
     return {
-      area: treads + risers + sides + landings,
-      parts: { treads, risers, sides, landings },
+      area: treads + risers + sides + landings + Object.values(extras).reduce((sum,n) => sum+n, 0),
+      parts: { treads, risers, sides, landings, ...extras },
     };
   }
   if (a.kind !== "monument") throw Error("Unknown geometry.");
@@ -393,6 +416,9 @@ export function calculate(draft: Draft) {
   if (!c.tankGal) throw Error("Tank gallons must be positive.");
   if (c.stockSH <= 0 || c.stockSH > 100 || c.wastePercent > 100)
     throw Error("Check stock SH and waste allowance.");
+  const assistant = c.assistantRate != null && c.crew >= 2;
+  if (c.assistantRate != null) nonnegative(c.assistantRate, "assistant hourly rate");
+  const hourlyLabor = (rate: number) => rate * (c.crew - Number(assistant)) + (assistant ? c.assistantRate! : 0);
   marginPrice(0, c.margin);
   for (const k of [
     "laborRate",
@@ -424,7 +450,10 @@ export function calculate(draft: Draft) {
   }[] = [];
   if (new Set(draft.areas.map((a) => a.id)).size !== draft.areas.length)
     throw Error("Treatment areas need unique identities.");
+  const areaErrors:Record<string,string[]> = Object.create(null);
+  const productErrors:Partial<Record<Treatment,string[]>> = {};
   for (const a of draft.areas) {
+    const start=errors.length;
     if (
       a.kind === "monument" &&
       (!a.faces || Object.values(a.faces).some((v) => typeof v !== "boolean"))
@@ -445,6 +474,20 @@ export function calculate(draft: Draft) {
     const { area, parts } = geometry(a);
     if (area <= 0 || area > 1e7)
       errors.push(a.name + ": enter positive dimensions.");
+    if (a.photos && (!Array.isArray(a.photos) || a.photos.length > 3 || a.photos.some(name => !/^(before|after|condition)-[0-9a-f-]{36}\.jpg$/i.test(name)))) throw Error("Invalid treatment photos.");
+    if ((a.kind === "stairs" || a.kind === "window") && a.components?.some(part => !measure(part.length) || !measure(part.width))) errors.push(a.name + ": enter both dimensions for every component.");
+    if (a.kind === "window") {
+      const rate = nonnegative(a.windowProductivity ?? 0, "window productivity");
+      if (!rate) errors.push(a.name + ": enter window cleaning square feet per crew hour.");
+      const hours = rate ? area / rate : 0;
+      const supplies = nonnegative(a.windowSupplies ?? 0, "window supplies");
+      rows.push({key:a.id+":window", description:a.name+" — Window cleaning", area, hours,
+        laborHours:hours*c.crew, solutionGal:0, passes:1, concentrateGal:0, waterGal:0, surfactantOz:0,
+        chemicalCost:supplies, cost:supplies+hours*(hourlyLabor(c.laborRate ?? 0)+(c.equipmentHourly ?? 0)+(c.overheadHourly ?? 0)),
+        price:0, dimensions:Object.entries(parts).map(([name,size])=>name+" "+size.toFixed(2)+" sq ft").join(", "), showDimensions:a.showDimensions});
+      areaErrors[a.id]=errors.slice(start);
+      continue;
+    }
     if (
       !Array.isArray(a.treatments) ||
       !a.treatments.length ||
@@ -492,6 +535,7 @@ export function calculate(draft: Draft) {
         throw Error("Check treatment coverage and severity.");
       const p = c.products[t.type];
       if (!p) throw Error("Missing product settings.");
+      const productStart=errors.length;
       const vinylRust = t.type === "rust" && a.material === "vinyl-siding";
       const vinylRustProduct = p.name.includes("Rust Remedy") && [
         "https://www.amazon.com/dp/B0FFQ7PLWF",
@@ -621,7 +665,7 @@ export function calculate(draft: Draft) {
       const cost =
         chemicalCost +
         hours *
-          (complexityLaborRate(c.laborRate ?? 30, t.severity) * c.crew +
+          (hourlyLabor(complexityLaborRate(c.laborRate ?? 30, t.severity)) +
             (c.equipmentHourly ?? 0) +
             (c.overheadHourly ?? 0));
       const dimensions =
@@ -640,13 +684,14 @@ export function calculate(draft: Draft) {
           : a.kind === "fascia" || a.kind === "soffit"
             ? `Run ${a.length.ft} ft ${a.length.inches} in × ${a.kind === "fascia" ? "face height" : "projection depth"} ${a.width.ft} ft ${a.width.inches} in`
           : a.kind === "stairs"
-            ? `${a.steps} steps; ${a.width.ft} ft ${a.width.inches} in wide; treads ${a.depth.ft} ft ${a.depth.inches} in; risers ${a.height.ft} ft ${a.height.inches} in; ${a.sides} sides; ${a.landings.length} landings`
+            ? `${a.steps} steps; ${a.width.ft} ft ${a.width.inches} in wide; treads ${a.depth.ft} ft ${a.depth.inches} in; risers ${a.height.ft} ft ${a.height.inches} in; ${a.sides} sides; ${a.landings.length} landings; ${Object.entries(componentAreas(a)).map(([name,n])=>name+" "+n.toFixed(2)+" sq ft").join(", ")}`
             : `${a.width.ft} ft ${a.width.inches} in × ${a.height.ft} ft ${a.height.inches} in × ${a.depth.ft} ft ${a.depth.inches} in; faces ${Object.entries(
                 a.faces,
               )
                 .filter(([, v]) => v)
                 .map(([k]) => k)
                 .join(", ")}`;
+      productErrors[t.type]=[...new Set([...(productErrors[t.type]??[]),...errors.slice(productStart).filter(e=>e.startsWith(p.name+":") || e.startsWith("Identify the previously") || e.startsWith("Enter the exact conservation"))])];
       rows.push({
         key: a.id + ":" + t.type,
         description: `${a.name}${a.kind === "canopy" ? " — Awning / Entry Canopy" : a.kind in EXTERIOR_KINDS ? " — "+EXTERIOR_KINDS[a.kind as keyof typeof EXTERIOR_KINDS] : ""} — ${t.type} (${MATERIAL_LABELS[a.material]||a.material})`,
@@ -665,6 +710,7 @@ export function calculate(draft: Draft) {
         showDimensions: a.showDimensions,
       });
     }
+    areaErrors[a.id]=[...new Set(errors.slice(start).filter(e=>e.startsWith(a.name+":")||e.startsWith("Each area")))];
   }
   const shRequired = rows
     .filter((r) => r.key.endsWith(":organic"))
@@ -678,7 +724,7 @@ export function calculate(draft: Draft) {
   const sharedHours = (c.setupMinutes + c.travelMinutes) / 60;
   const sharedCost =
     sharedHours *
-      ((c.laborRate ?? 0) * c.crew +
+      (hourlyLabor(c.laborRate ?? 0) +
         (c.equipmentHourly ?? 0) +
         (c.overheadHourly ?? 0)) +
     (c.fuel ?? 0);
@@ -717,9 +763,11 @@ export function calculate(draft: Draft) {
     errors.push("Estimate exceeds the supported $10,000,000 limit.");
   return {
     rows,
+    areaErrors, productErrors,
     errors: [...new Set(errors)],
     warnings: [...new Set(warnings)],
     cost: money(cost),
+    assistantPay: money((assistant ? c.assistantRate! : 0) * (rows.reduce((n,r) => n+r.hours, 0) + sharedHours)),
     sharedCost: money(sharedCost),
     total,
     subtotal: promotion.subtotal,

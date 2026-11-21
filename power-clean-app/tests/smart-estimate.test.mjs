@@ -389,3 +389,17 @@ test("invalid amounts, removed services, and ineligible multi-service discounts 
   d.discounts = [promotion({ method: "percent", value: 101 })];
   assert.throws(() => parseDraft(d), /Check discount/);
 });
+test("stair rail, posts and nosing add only the measured exposed faces", () => {
+  const a=newArea();a.kind="stairs";a.width.ft=3;a.height.inches=6;a.depth.ft=1;a.steps=4;
+  a.components=["Handrail","Box newel post","Wood baluster","Iron baluster","Wall stringer","Structural cut stringer","Bullnose"].map(name=>({name,count:2,length:{ft:3,inches:0},width:{ft:0,inches:4}}));
+  close(geometry(a).area,32);
+});
+test("window assembly and assistant pay include shared hours exactly once",()=>{
+  const d=fixture(), a=d.areas[0];a.kind="window";a.windowProductivity=24;a.windowSupplies=5;
+  a.components=[{name:"Glass pane",length:{ft:4,inches:0},width:{ft:3,inches:0},count:2}];
+  Object.assign(d.config,{crew:2,assistantRate:18,setupMinutes:15,travelMinutes:15});
+  const r=calculate(d);assert.deepEqual(r.errors,[]);close(r.hours,1.5);close(r.assistantPay,27);
+  close(r.cost,5+1.5*(30+18+10+5)+20);close(r.shRequired,0);
+  assert.equal(r.rows[0].key,a.id+":window");
+  assert.throws(()=>parseDraft({...d,areas:[{...a,photos:["../other-customer.jpg"]}]}));
+});

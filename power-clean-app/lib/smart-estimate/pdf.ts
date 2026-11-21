@@ -7,6 +7,7 @@ export async function estimatePdf(
   reference: string,
   logo: Uint8Array,
   status?: string,
+  loadPhoto?: (name:string) => Promise<Uint8Array>,
 ) {
   const r = calculate(d);
   if (r.errors.length) throw Error("Estimate has unresolved validation.");
@@ -85,5 +86,16 @@ export async function estimatePdf(
   }
   y -= 14;
   line("Stacston Carter - Owner, Power Clean", 11, true);
+  for (const area of d.areas.filter(a=>a.photos?.length)) {
+    if (!loadPhoto) throw Error("Photo loader unavailable.");
+    page=pdf.addPage([612,792]); header(); y=660; wrap(area.name);
+    for (const name of area.photos!) {
+      const picture=await pdf.embedJpg(await loadPhoto(name));
+      const {width,height}=picture.scaleToFit(500,157);
+      line(name.split("-")[0]+" photo");
+      page.drawImage(picture,{x:42,y:y-height,width,height});
+      y-=height+15;
+    }
+  }
   return pdf.save();
 }

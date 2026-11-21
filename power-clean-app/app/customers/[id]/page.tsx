@@ -13,7 +13,7 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)return <main className="workspace"><h1>Business access pending</h1></main>;
- const {data:customer}=await supabase.from('customers').select('id,name,email,phone,service_address,created_at').eq('id',id).eq('business_id',member.business_id).maybeSingle();
+ const {data:customer}=await supabase.from('active_customers').select('id,name,email,phone,service_address,created_at').eq('id',id).eq('business_id',member.business_id).maybeSingle();
  if(!customer)notFound();
  const [addressesResult,notesResult]=await Promise.all([
  supabase.from('customer_addresses').select('id,label,address,is_primary,created_at').eq('customer_id',id).eq('business_id',member.business_id).order('created_at'),
@@ -30,9 +30,14 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  const addresses=addressesResult.data||[];
  const primaryAddress=addresses.find(a=>a.is_primary)||addresses[0];
  const {data:smartDrafts}=await supabase.from('smart_estimate_drafts').select('id,name,estimate_id,updated_at').eq('customer_id',id).eq('business_id',member.business_id).order('updated_at',{ascending:false}).limit(50);
+ const stages = ["Customer added","Estimate prepared","Estimate accepted","Agreement signed","Job scheduled","Invoiced","Paid"];
+ const activity = await Promise.all(["estimates","customer_agreements","jobs","invoices"].map(table=>supabase.from(table).select("status").eq("business_id",member.business_id).eq("customer_id",id).is("deleted_at",null).order("created_at",{ascending:false}).limit(1).maybeSingle()));
+ const [estimate,agreement,job,invoice]=activity.map(result=>result.data?.status);
+ const stage=invoice==="paid"?6:invoice&&invoice!=="void"?5:job&&["scheduled","in_progress","completed"].includes(job)?4:agreement==="signed"?3:estimate==="accepted"?2:estimate?1:0;
  const displayedAddress=primaryAddress?.address||customer.service_address||null;
  return <main className="workspace">
  <header className="workspace-header"><div><span className="eyebrow">POWER CLEAN / CUSTOMERS</span><h1>{customer.name}</h1><p className="muted">Customer since {new Date(customer.created_at).toLocaleDateString('en-US')}</p></div><Link href="/customers">All customers</Link></header>
+ <section className="panel"><h2>Sales progress</h2>{activity.some(result=>result.error)?<p>Sales activity unavailable.</p>:<><p>Latest customer activity · {stages[stage]} (stage {stage+1} of {stages.length})</p><progress aria-label="Customer sales progress" value={stage+1} max={stages.length}/></>}</section>
  <section className="panel"><h2>Smart estimates & saved drafts</h2><Link href={"/estimates/smart?customer="+id}>Create smart estimate</Link>{smartDrafts?.map(d=><p key={d.id}><Link href={"/estimates/smart?draft="+d.id}>{d.name}</Link> · {d.estimate_id?"Finalized":"Draft"}{d.estimate_id&&<> · <Link href={"/estimates/view?id="+d.estimate_id}>View estimate</Link></>}</p>)}</section><section className="panel"><h2>Customer details</h2><p>Email: {customer.email||'Not provided'}</p><p>Phone: {customer.phone||'Not provided'}</p><p><strong>Primary service address:</strong> {displayedAddress||'No address saved'}</p><Link href={'/agreements?customer='+encodeURIComponent(id)}>Create agreement</Link> · <Link href={'/estimates?customer='+encodeURIComponent(id)}>Create estimate</Link></section>
  {['owner','admin','staff'].includes(member.role)&&<CustomerProfileEditor customer={customer}/>}
  <CustomerEditors customerId={id} canEdit={['owner','admin','staff'].includes(member.role)}/>

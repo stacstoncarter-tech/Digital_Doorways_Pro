@@ -1,13 +1,18 @@
 'use server';
 import {createClient} from '@/lib/supabase/server';
 import {revalidatePath} from 'next/cache';
-export async function deleteCustomer(customerId:string,confirmation:string){
+export async function deleteCustomer(customerId:string,confirmation:string,override=false){
  if(!/^[0-9a-f-]{36}$/i.test(customerId)||confirmation!=='DELETE')return {error:'Type DELETE to confirm.'};
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)return {error:'Sign in again.'};
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member||!['owner','admin'].includes(member.role))return {error:'Only the business owner or administrator may delete customers.'};
  const {data:customer}=await supabase.from('customers').select('id').eq('id',customerId).eq('business_id',member.business_id).maybeSingle();
  if(!customer)return {error:'Customer not found.'};
+ if(override){
+  const {error}=await supabase.rpc('remove_customer_from_directory',{p_customer:customerId});
+  if(error)return {error:'Could not remove this customer: '+error.message};
+  revalidatePath('/customers');return {success:true};
+ }
  for(const table of ['customer_agreements','estimates','jobs','invoices']){
   const {count,error}=await supabase.from(table).select('id',{head:true,count:'exact'}).eq('business_id',member.business_id).eq('customer_id',customerId);
   if(error)return {error:'Could not verify linked records. No deletion performed.'};
