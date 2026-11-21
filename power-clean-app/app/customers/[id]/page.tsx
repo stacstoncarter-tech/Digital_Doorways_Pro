@@ -21,12 +21,9 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  ]);
  const photoFolder=member.business_id+'/'+id;
  const {data:photoFiles,error:photoError}=await supabase.storage.from('power-clean-customer-photos').list(photoFolder,{limit:1000,sortBy:{column:'created_at',order:'desc'}});
- const photoResults=await Promise.all((photoFiles||[]).filter(file=>/\.(jpg|jpeg|png|webp|heic|heif)$/i.test(file.name)).map(async file=>{
-  const name=photoFolder+'/'+file.name;
-  const {data}=await supabase.storage.from('power-clean-customer-photos').createSignedUrl(name,3600);
-  return data?.signedUrl?{name,url:data.signedUrl}:null;
- }));
- const customerPhotos=photoResults.filter((photo):photo is {name:string;url:string}=>photo!==null);
+ const paths=(photoFiles??[]).filter(f=>/\.(jpg|jpeg|png|webp|heic|heif)$/i.test(f.name)).map(f=>photoFolder+"/"+f.name);
+ const {data:links,error:linkError}=paths.length?await supabase.storage.from("power-clean-customer-photos").createSignedUrls(paths,3600):{data:[],error:null};
+ const customerPhotos=(links??[]).flatMap(link=>link.path&&link.signedUrl?[{name:link.path,url:link.signedUrl}]:[]);
  const addresses=addressesResult.data||[];
  const primaryAddress=addresses.find(a=>a.is_primary)||addresses[0];
  const {data:smartDrafts}=await supabase.from('smart_estimate_drafts').select('id,name,estimate_id,updated_at').eq('customer_id',id).eq('business_id',member.business_id).order('updated_at',{ascending:false}).limit(50);
@@ -41,7 +38,7 @@ export default async function CustomerDetail({params}:{params:Promise<{id:string
  <section className="panel"><h2>Smart estimates & saved drafts</h2><Link href={"/estimates/smart?customer="+id}>Create smart estimate</Link>{smartDrafts?.map(d=><p key={d.id}><Link href={"/estimates/smart?draft="+d.id}>{d.name}</Link> · {d.estimate_id?"Finalized":"Draft"}{d.estimate_id&&<> · <Link href={"/estimates/view?id="+d.estimate_id}>View estimate</Link></>}</p>)}</section><section className="panel"><h2>Customer details</h2><p>Email: {customer.email||'Not provided'}</p><p>Phone: {customer.phone||'Not provided'}</p><p><strong>Primary service address:</strong> {displayedAddress||'No address saved'}</p><Link href={'/agreements?customer='+encodeURIComponent(id)}>Create agreement</Link> · <Link href={'/estimates?customer='+encodeURIComponent(id)}>Create estimate</Link></section>
  {['owner','admin','staff'].includes(member.role)&&<CustomerProfileEditor customer={customer}/>}
  <CustomerEditors customerId={id} canEdit={['owner','admin','staff'].includes(member.role)}/>
- {photoError&&<section className="panel"><p role="alert">Customer photos could not load: {photoError.message}</p></section>}
+ {(photoError||linkError)&&<section className="panel"><p role="alert">Customer photos could not load: {(photoError||linkError)?.message}</p></section>}
  <CustomerPhotos businessId={member.business_id} customerId={id} initialPhotos={customerPhotos} canUpload={['owner','admin','staff'].includes(member.role)}/>
  <p><Link href={"/customers/"+id+"/photos"}>Open dedicated photo management page</Link></p>
   <section className="panel"><h2>Service properties</h2><p>Addresses saved here are available to estimates and agreements. Choose a primary address to display at the top of this customer profile.</p>{addressesResult.error?<p role="alert">Could not load properties.</p>:(addressesResult.data||[]).length?<ul>{(addressesResult.data||[]).map(a=><li key={a.id}><strong>{a.label}</strong>{a.is_primary?' (Original)':''} — {a.address}{['owner','admin','staff'].includes(member.role)&&<PropertyEditor customerId={id} property={a}/>}</li>)}</ul>:<p>No service properties saved yet.</p>}</section>
