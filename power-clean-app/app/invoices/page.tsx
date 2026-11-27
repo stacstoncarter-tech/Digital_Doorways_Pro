@@ -8,7 +8,7 @@ export default async function InvoicesPage(){
  const supabase=await createClient(),{data:{user}}=await supabase.auth.getUser();if(!user)redirect('/login');
  const {data:member}=await supabase.from('business_members').select('business_id,role').eq('user_id',user.id).limit(1).maybeSingle();
  if(!member)return <main className="workspace"><h1>Access pending</h1></main>;
- const {data:invoices,error}=await supabase.from('invoices').select('id,invoice_number,customer_id,job_id,status,subtotal,discount,tax_rate,total,due_at,notes,created_at,invoice_items(description,quantity,unit_price,position),invoice_payments(amount,method,reference,received_at)').is('deleted_at',null).eq('business_id',member.business_id).order('created_at',{ascending:false}).limit(200);
+ const {data:invoices,error}=await supabase.from('invoices').select('id,invoice_number,customer_id,job_id,status,status_before_void,subtotal,discount,tax_rate,total,due_at,notes,created_at,invoice_items(description,quantity,unit_price,position),invoice_payments(amount,method,reference,received_at)').is('deleted_at',null).eq('business_id',member.business_id).order('created_at',{ascending:false}).limit(200);
  const ids=[...new Set((invoices||[]).map(i=>i.customer_id))];
  const {data:customers}=ids.length?await supabase.from('customers').select('id,name,email').eq('business_id',member.business_id).in('id',ids):{data:[]};
  const names=new Map((customers||[]).map(c=>[c.id,c]));
@@ -19,7 +19,7 @@ export default async function InvoicesPage(){
  <ul>{(i.invoice_items||[]).map((x,n)=><li key={n}>{x.description}: {x.quantity} × {money(x.unit_price)} = {money(Number(x.quantity)*Number(x.unit_price))}</li>)}</ul>
  <p>Subtotal {money(i.subtotal)} · Discount {money(i.discount)} · Tax {i.tax_rate}%</p><p>Paid: {money(paid)} · <strong>Balance: {money(balance)}</strong></p>
  <p><Link href={'/customers/'+i.customer_id}>Customer</Link> · <Link href={"/jobs/"+i.job_id}>Job</Link> · <Link href={"/invoices/"+i.id}>Print / Save PDF</Link></p>
- {canDelete&&<DeleteRecord kind="invoice" id={i.id} label={i.invoice_number}/>}<InvoiceControls id={i.id} status={i.status} balance={balance}/>
+ {canDelete&&<DeleteRecord kind="invoice" id={i.id} label={i.invoice_number}/>}<InvoiceControls id={i.id} status={i.status} balance={balance} canRestore={!!i.status_before_void}/>
  {(i.invoice_payments||[]).length>0&&<details><summary>Payment history</summary><ul>{i.invoice_payments.map((p,n)=><li key={n}>{money(p.amount)} · {p.method} · {new Date(p.received_at).toLocaleDateString('en-US')} {p.reference}</li>)}</ul></details>}
  </section>})}</main>;
 }
