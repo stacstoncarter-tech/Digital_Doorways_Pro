@@ -1,0 +1,4 @@
+'use client';
+import {useActionState} from 'react';
+import {logCustomerActivity} from './actions';
+export default function ActivityForm({customerId}:{customerId:string}){const [s,action,p]=useActionState(logCustomerActivity,{error:'',success:''});return <details><summary>Log customer interaction</summary><form action={action} style={{display:'grid',gap:10,maxWidth:560,marginTop:12}}><input type="hidden" name="customer_id" value={customerId}/><label>Interaction type<select name="activity_type">{['call','text','email','visit','follow_up','complaint','compliment','other'].map(x=><option key={x} value={x}>{x.replace('_',' ')}</option>)}</select></label><label>Date and time (optional)<input name="occurred_at" type="datetime-local"/></label><label>Summary<textarea name="summary" rows={3} required maxLength={2000}/></label><button disabled={p}>Save interaction</button>{s.error&&<p role="alert">{s.error}</p>}{s.success&&<p role="status">{s.success}</p>}</form></details>}
