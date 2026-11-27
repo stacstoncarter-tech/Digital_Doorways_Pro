@@ -2,7 +2,7 @@ alter table public.invoices
   add column if not exists status_before_void text
   check (status_before_void in ('draft', 'sent', 'partially_paid', 'paid'));
 
-create or replace function public.change_invoice_void_status(p_invoice_id uuid, p_restore boolean)
+create or replace function public.change_invoice_void_status(p_invoice_id uuid, p_restore boolean, p_legacy_status text default null)
 returns text
 language plpgsql
 set search_path = ''
@@ -19,14 +19,14 @@ begin
 
   if p_restore then
     if inv.status <> 'void' then raise exception 'Invoice is not void'; end if;
-    if inv.status_before_void is null then
-      raise exception 'Previous status unavailable for this invoice';
+    if inv.status_before_void is null and (p_legacy_status is null or p_legacy_status not in ('draft','sent')) then
+      raise exception 'Choose the status for this older invoice';
     end if;
     select coalesce(sum(amount), 0) into paid from public.invoice_payments where invoice_id = inv.id;
     next_status := case
       when paid >= inv.total and paid > 0 then 'paid'
       when paid > 0 then 'partially_paid'
-      else inv.status_before_void
+      else coalesce(inv.status_before_void, p_legacy_status)
     end;
     update public.invoices set status = next_status, status_before_void = null, updated_at = now()
       where id = inv.id;
@@ -48,5 +48,5 @@ begin
 end;
 $function$;
 
-revoke all on function public.change_invoice_void_status(uuid, boolean) from public, anon;
-grant execute on function public.change_invoice_void_status(uuid, boolean) to authenticated;
+revoke all on function public.change_invoice_void_status(uuid, boolean, text) from public, anon;
+grant execute on function public.change_invoice_void_status(uuid, boolean, text) to authenticated;

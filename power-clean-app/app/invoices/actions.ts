@@ -23,10 +23,10 @@ export async function setInvoiceStatus(id:string,status:string):Promise<Result>{
  const {error}=await ctx.supabase.from('invoices').update({status,updated_at:new Date().toISOString()}).is('deleted_at',null).eq('id',id).eq('business_id',ctx.member.business_id);
  if(error)return {error:'Could not update invoice.'};revalidatePath('/invoices');revalidatePath('/dashboard');revalidatePath('/operations');return {success:true};
 }
-export async function changeInvoiceVoidStatus(id:string,restore:boolean):Promise<Result>{
+export async function changeInvoiceVoidStatus(id:string,restore:boolean,legacyStatus?:string):Promise<Result>{
  const ctx=await context();if(!ctx)return {error:'Access denied.'};
- if(!/^[0-9a-f-]{36}$/i.test(id))return {error:'Invalid invoice.'};
- const {data,error}=await ctx.supabase.rpc('change_invoice_void_status',{p_invoice_id:id,p_restore:restore});
+ if(!/^[0-9a-f-]{36}$/i.test(id)||(legacyStatus&&!['draft','sent'].includes(legacyStatus)))return {error:'Invalid invoice update.'};
+ const {error}=await ctx.supabase.rpc('change_invoice_void_status',{p_invoice_id:id,p_restore:restore,p_legacy_status:legacyStatus||null});
  if(error)return {error:error.code==='P0001'?error.message:'Could not change invoice status.'};
  const {data:invoice}=await ctx.supabase.from('invoices').select('customer_id').eq('id',id).eq('business_id',ctx.member.business_id).single();
  revalidatePath('/invoices');revalidatePath('/invoices/'+id);revalidatePath('/dashboard');revalidatePath('/operations');revalidatePath('/reports');
